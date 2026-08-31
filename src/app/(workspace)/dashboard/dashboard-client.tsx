@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import AppShell from "@/components/app-shell";
+import Topbar from "@/components/topbar";
+import { DashboardSkeleton } from "@/components/skeletons";
 import { Icon, getCategoryIconName } from "@/components/icon";
 import { apiFetch, formatMoney, shortDate } from "@/lib/client";
 
@@ -324,32 +325,25 @@ export default function DashboardClient() {
   }, [analytics]);
 
   return (
-    <AppShell
-      title="Dashboard"
-      actions={
-        <>
-          <button className="button button-secondary" type="button" onClick={() => void load()} disabled={loading}>
-            <Icon name="refresh" className="icon-sm" />
-            {loading ? "Refreshing…" : "Refresh"}
-          </button>
-          <Link className="button button-primary" href="/mobile">
-            <Icon name="plus" className="icon-sm" />
-            Add
-          </Link>
-        </>
-      }
-    >
+    <>
+      <Topbar
+        title="Dashboard"
+        actions={
+          <>
+            <button className="button button-secondary" type="button" onClick={() => void load()} disabled={loading}>
+              <Icon name="refresh" className="icon-sm" />
+              {loading ? "Refreshing…" : "Refresh"}
+            </button>
+            <Link className="button button-primary" href="/mobile">
+              <Icon name="plus" className="icon-sm" />
+              Add
+            </Link>
+          </>
+        }
+      />
       {error ? <div className="form-error" role="alert">{error}</div> : null}
       {loading && !analytics ? (
-        <div className="workspace-stack">
-          <div className="metric-strip">
-            <div className="loading-block" />
-            <div className="loading-block" />
-            <div className="loading-block" />
-            <div className="loading-block" />
-          </div>
-          <div className="surface surface-body"><div className="loading-block" /></div>
-        </div>
+        <DashboardSkeleton />
       ) : (
         <>
           {/* Top Level Metric Summary Strip */}
@@ -1120,6 +1114,6 @@ export default function DashboardClient() {
           </div>
         </>
       )}
-    </AppShell>
+    </>
   );
 }

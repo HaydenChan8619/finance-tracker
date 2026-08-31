@@ -19,7 +19,7 @@ export default function AppShell({
   actions,
 }: {
   children: ReactNode;
-  title: string;
+  title?: string;
   description?: string;
   actions?: ReactNode;
 }) {
@@ -204,13 +204,15 @@ export default function AppShell({
 
       {/* Main Content Area */}
       <main className="main-content">
-        <header className="topbar">
-          <div className="topbar-title-group">
-            <h1>{title}</h1>
-            {description ? <p>{description}</p> : null}
-          </div>
-          {actions ? <div className="topbar-actions">{actions}</div> : null}
-        </header>
+        {title ? (
+          <header className="topbar">
+            <div className="topbar-title-group">
+              <h1>{title}</h1>
+              {description ? <p>{description}</p> : null}
+            </div>
+            {actions ? <div className="topbar-actions">{actions}</div> : null}
+          </header>
+        ) : null}
         {children}
       </main>
     </div>

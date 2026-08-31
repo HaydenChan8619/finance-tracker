@@ -2,8 +2,8 @@
 
 import { ChangeEvent, DragEvent, FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import AuthGate from "@/components/auth-gate";
-import AppShell from "@/components/app-shell";
+import Topbar from "@/components/topbar";
+import { ImportHistorySkeleton } from "@/components/skeletons";
 import { Icon } from "@/components/icon";
 import { apiFetch, formatMoney, fullDate } from "@/lib/client";
 
@@ -374,9 +374,10 @@ function ImportWorkspace() {
     : 0;
 
   return (
-    <AppShell
-      title="Import statements"
-    >
+    <>
+      <Topbar
+        title="Import statements"
+      />
       {error ? (
         <div className="form-error" role="alert" style={{ marginBottom: 18 }}>
           {error}
@@ -484,7 +485,7 @@ function ImportWorkspace() {
             </div>
             {loading ? (
               <div className="surface-body">
-                <div className="loading-block" />
+                <ImportHistorySkeleton />
               </div>
             ) : batches.length ? (
               <div className="ledger-list">
@@ -994,14 +995,10 @@ function ImportWorkspace() {
           )}
         </section>
       </div>
-    </AppShell>
+    </>
   );
 }
 
 export default function ImportPage() {
-  return (
-    <AuthGate>
-      <ImportWorkspace />
-    </AuthGate>
-  );
+  return <ImportWorkspace />;
 }

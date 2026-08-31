@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import AuthGate from "@/components/auth-gate";
-import AppShell from "@/components/app-shell";
+import Topbar from "@/components/topbar";
+import { SettingsSkeleton } from "@/components/skeletons";
 import { apiFetch, fullDate } from "@/lib/client";
 import { Icon } from "@/components/icon";
 
@@ -110,10 +110,11 @@ function SettingsWorkspace() {
   }
 
   return (
-    <AppShell title="Settings">
+    <>
+      <Topbar title="Settings" />
       {error ? <div className="form-error" role="alert" style={{ marginBottom: 18 }}>{error}</div> : null}
       {message ? <div className="form-success" role="status" style={{ marginBottom: 18 }}>{message}</div> : null}
-      {loading ? <div className="surface surface-body"><div className="loading-block" /></div> : (
+      {loading ? <SettingsSkeleton /> : (
         <div className="settings-grid">
           <section className="surface" aria-labelledby="categories-title">
             <div className="surface-header"><div><h2 id="categories-title">Categories</h2></div><Icon name="book" className="icon-lg" /></div>
@@ -151,10 +152,10 @@ function SettingsWorkspace() {
           </section>
         </div>
       )}
-    </AppShell>
+    </>
   );
 }
 
 export default function SettingsPage() {
-  return <AuthGate><SettingsWorkspace /></AuthGate>;
+  return <SettingsWorkspace />;
 }

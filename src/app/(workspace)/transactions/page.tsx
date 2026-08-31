@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import AuthGate from "@/components/auth-gate";
-import AppShell from "@/components/app-shell";
+import Topbar from "@/components/topbar";
+import { TransactionsTableSkeleton } from "@/components/skeletons";
 import { Icon } from "@/components/icon";
 import { apiFetch, formatMoney, fullDate } from "@/lib/client";
 import { parseAmountToCents } from "@/lib/validation";
@@ -279,10 +279,11 @@ function TransactionsWorkspace() {
   }
 
   return (
-    <AppShell
-      title="Transactions"
-      actions={<Link className="button button-primary" href="/mobile"><Icon name="plus" className="icon-sm" />Add</Link>}
-    >
+    <>
+      <Topbar
+        title="Transactions"
+        actions={<Link className="button button-primary" href="/mobile"><Icon name="plus" className="icon-sm" />Add</Link>}
+      />
       {error ? <div className="form-error" role="alert" style={{ marginBottom: 18 }}>{error}</div> : null}
       <div className="workspace-grid">
         <section className="surface" aria-labelledby="transaction-list-title">
@@ -326,7 +327,9 @@ function TransactionsWorkspace() {
               </div>
             </div>
           </div>
-          {loading ? <div className="surface-body"><div className="loading-block" /></div> : transactions.length ? (
+          {loading ? (
+            <TransactionsTableSkeleton />
+          ) : transactions.length ? (
             <div className="table-wrap">
               <table className="data-table">
                 <thead><tr><th>Merchant</th><th>Date</th><th>Category</th><th>Amount</th><th><span className="sr-only">Actions</span></th></tr></thead>
@@ -358,10 +361,10 @@ function TransactionsWorkspace() {
         </section>
         <TransactionForm categories={categories} editing={editing} onSaved={saved} onCancel={() => setEditing(null)} />
       </div>
-    </AppShell>
+    </>
   );
 }
 
 export default function TransactionsPage() {
-  return <AuthGate><TransactionsWorkspace /></AuthGate>;
+  return <TransactionsWorkspace />;
 }

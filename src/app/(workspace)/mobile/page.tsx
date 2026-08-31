@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import AppShell from "@/components/app-shell";
+import Topbar from "@/components/topbar";
 import { apiFetch, ClientApiError } from "@/lib/client";
 import { parseAmountToCents } from "@/lib/validation";
 import {
@@ -347,15 +347,16 @@ export default function MobilePage() {
   const isIncomeSelected = selectedCategory?.name.toLowerCase() === "income" || categoryId === "Income";
 
   return (
-    <AppShell
-      title="Add"
-      actions={
-        <Link href="/transactions" className="button button-secondary button-sm">
-          <BookOpen className="icon-sm" />
-          Ledger
-        </Link>
-      }
-    >
+    <>
+      <Topbar
+        title="Add"
+        actions={
+          <Link href="/transactions" className="button button-secondary button-sm">
+            <BookOpen className="icon-sm" />
+            Ledger
+          </Link>
+        }
+      />
       <div className="mobile-capture-container">
         <div className="mobile-modal-card surface">
           {!authorized ? (
@@ -505,6 +506,6 @@ export default function MobilePage() {
           </form>
         </div>
       </div>
-    </AppShell>
+    </>
   );
 }
