@@ -110,13 +110,13 @@ function SettingsWorkspace() {
   }
 
   return (
-    <AppShell title="Settings" description="The controls around your private source of truth.">
+    <AppShell title="Settings">
       {error ? <div className="form-error" role="alert" style={{ marginBottom: 18 }}>{error}</div> : null}
       {message ? <div className="form-success" role="status" style={{ marginBottom: 18 }}>{message}</div> : null}
       {loading ? <div className="surface surface-body"><div className="loading-block" /></div> : (
         <div className="settings-grid">
           <section className="surface" aria-labelledby="categories-title">
-            <div className="surface-header"><div><h2 id="categories-title">Categories</h2><p>{categories.length} available lanes for the ledger.</p></div><Icon name="book" className="icon-lg" /></div>
+            <div className="surface-header"><div><h2 id="categories-title">Categories</h2></div><Icon name="book" className="icon-lg" /></div>
             <div className="surface-body">
               <form onSubmit={addCategory} className="form-grid">
                 <div className="field"><label htmlFor="category-name">New category</label><input id="category-name" className="input" value={categoryName} onChange={(event) => setCategoryName(event.target.value)} placeholder="Pet care" required /></div>
@@ -130,7 +130,7 @@ function SettingsWorkspace() {
           </section>
 
           <section className="surface" aria-labelledby="device-title">
-            <div className="surface-header"><div><h2 id="device-title">Authorized devices</h2><p>Write access is explicit and revocable.</p></div><Icon name="smartphone" className="icon-lg" /></div>
+            <div className="surface-header"><div><h2 id="device-title">Authorized devices</h2></div><Icon name="smartphone" className="icon-lg" /></div>
             <div className="surface-body">
               <form onSubmit={createEnrollment} className="form-grid">
                 <div className="field"><label htmlFor="device-name">New device name</label><input id="device-name" className="input" value={deviceName} onChange={(event) => setDeviceName(event.target.value)} required /></div>
@@ -144,7 +144,7 @@ function SettingsWorkspace() {
           </section>
 
           <section className="surface" aria-labelledby="rules-title">
-            <div className="surface-header"><div><h2 id="rules-title">Learned rules</h2><p>Deterministic corrections used by category prediction.</p></div><Icon name="spark" className="icon-lg" /></div>
+            <div className="surface-header"><div><h2 id="rules-title">Learned rules</h2></div><Icon name="spark" className="icon-lg" /></div>
             <div className="surface-body">
               {rules.length ? <div className="rule-list">{rules.map((rule) => <div className="rule-row" key={rule.id}><span className="rule-meta"><strong>{rule.pattern}</strong><span>{rule.category.name} · priority {rule.priority}</span></span><button className="text-button" type="button" onClick={() => void apiFetch(`/api/rules/${rule.id}`, { method: "DELETE" }).then(() => load()).catch((requestError) => setError(requestError instanceof Error ? requestError.message : "Unable to delete rule."))}>Delete</button></div>)}</div> : <div className="empty-state"><div><strong>No learned rules yet.</strong><p>Correct a prediction while capturing a transaction and the merchant relationship will appear here.</p></div></div>}
             </div>

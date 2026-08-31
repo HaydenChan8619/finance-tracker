@@ -376,7 +376,6 @@ function ImportWorkspace() {
   return (
     <AppShell
       title="Import statements"
-      description="OCR document extraction and review pipeline. Review, edit, and approve before adding to your ledger."
     >
       {error ? (
         <div className="form-error" role="alert" style={{ marginBottom: 18 }}>
@@ -408,7 +407,6 @@ function ImportWorkspace() {
             <div className="surface-header">
               <div>
                 <h2 id="upload-title">Import Statement</h2>
-                <p>Upload a statement screenshot, photo (OCR), PDF, or text file.</p>
               </div>
               <Icon name="upload" className="icon-lg" />
             </div>
@@ -481,7 +479,6 @@ function ImportWorkspace() {
             <div className="surface-header">
               <div>
                 <h2 id="history-title">Import History</h2>
-                <p>Review and audit staged files.</p>
               </div>
               <Icon name="book" className="icon-lg" />
             </div>
@@ -559,11 +556,6 @@ function ImportWorkspace() {
                   </span>
                 ) : null}
               </div>
-              <p>
-                {selected
-                  ? `${selected.sourceFilename} · Edit records below to ensure dates, amounts, and merchants are accurate.`
-                  : "Select a staged statement from the history to inspect and edit its records."}
-              </p>
             </div>
 
             {selected && selected.status !== "committed" ? (

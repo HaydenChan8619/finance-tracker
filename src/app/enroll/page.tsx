@@ -49,7 +49,6 @@ export default function EnrollPage() {
         {done ? (
           <>
             <h1 id="enroll-title">Phone authorized.</h1>
-            <p>This browser can now capture expenses without asking for the admin password each time.</p>
             <Link href="/mobile" className="button button-primary"><Icon name="plus" className="icon-sm" />Open Add</Link>
           </>
         ) : (

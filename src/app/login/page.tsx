@@ -62,7 +62,6 @@ export default function LoginPage() {
           </span>
         </Link>
         <h1 id="login-title">Welcome back.</h1>
-        <p>Sign in to see the records stored on your private workspace.</p>
         <form className="login-form" onSubmit={submit}>
           <div className="field">
             <label htmlFor="email">Admin email</label>

@@ -349,7 +349,6 @@ export default function MobilePage() {
   return (
     <AppShell
       title="Add"
-      description="Record an expense or income on the go. Works offline and syncs automatically."
       actions={
         <Link href="/transactions" className="button button-secondary button-sm">
           <BookOpen className="icon-sm" />

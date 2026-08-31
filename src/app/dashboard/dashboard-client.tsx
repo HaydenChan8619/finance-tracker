@@ -114,6 +114,29 @@ export default function DashboardClient() {
   const [distributionTab, setDistributionTab] = useState<"category" | "lifestyle" | "monthly">("category");
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
   const [hoveredLifestyle, setHoveredLifestyle] = useState<string | null>(null);
+  const [isIncomeHidden, setIsIncomeHidden] = useState(false);
+  const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(new Set());
+
+  const toggleIncome = useCallback(() => {
+    setIsIncomeHidden((prev) => !prev);
+  }, []);
+
+  const toggleCategory = useCallback((categoryName: string) => {
+    setHiddenCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(categoryName)) {
+        next.delete(categoryName);
+      } else {
+        next.add(categoryName);
+      }
+      return next;
+    });
+  }, []);
+
+  const showAllSeries = useCallback(() => {
+    setIsIncomeHidden(false);
+    setHiddenCategories(new Set());
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -136,12 +159,22 @@ export default function DashboardClient() {
     void load();
   }, [load]);
 
-  // Max value calculation for bar chart height scale
+  // Max value calculation for bar chart height scale (accounting for toggled series)
   const maxBar = useMemo(() => {
     if (!analytics?.months?.length) return 1;
-    const maxVal = Math.max(...analytics.months.map((m) => Math.max(m.expenses, m.income)));
+    const maxVal = Math.max(
+      ...analytics.months.map((m) => {
+        const visibleIncome = isIncomeHidden ? 0 : m.income;
+        const visibleExpense = m.expensesByCategory
+          ? m.expensesByCategory
+              .filter((c) => !hiddenCategories.has(c.name))
+              .reduce((sum, c) => sum + c.amountCents, 0)
+          : (hiddenCategories.size > 0 ? 0 : m.expenses);
+        return Math.max(visibleIncome, visibleExpense);
+      })
+    );
     return maxVal > 0 ? maxVal : 1;
-  }, [analytics]);
+  }, [analytics, isIncomeHidden, hiddenCategories]);
 
   const maxCategory = useMemo(() => {
     if (!analytics?.categoryBreakdown?.length) return 1;
@@ -163,6 +196,22 @@ export default function DashboardClient() {
       null
     );
   }, [analytics, activeMonthKey]);
+
+  const activeMonthVisibleCategories = useMemo(() => {
+    if (!activeMonth?.expensesByCategory) return [];
+    return activeMonth.expensesByCategory.filter((cat) => !hiddenCategories.has(cat.name));
+  }, [activeMonth, hiddenCategories]);
+
+  const activeMonthVisibleExpense = useMemo(() => {
+    if (!activeMonth) return 0;
+    if (activeMonth.expensesByCategory) {
+      return activeMonthVisibleCategories.reduce((sum, cat) => sum + cat.amountCents, 0);
+    }
+    return hiddenCategories.size > 0 ? 0 : activeMonth.expenses;
+  }, [activeMonth, activeMonthVisibleCategories, hiddenCategories]);
+
+  const activeMonthVisibleIncome = isIncomeHidden ? 0 : (activeMonth?.income ?? 0);
+  const activeMonthNet = activeMonthVisibleIncome - activeMonthVisibleExpense;
 
   // Calculate lifestyle split data (Social vs Solo vs Dating)
   const lifestyleData = useMemo(() => {
@@ -276,8 +325,7 @@ export default function DashboardClient() {
 
   return (
     <AppShell
-      title="Your money, in motion."
-      description="A route-aware view of the records you have chosen to keep."
+      title="Dashboard"
       actions={
         <>
           <button className="button button-secondary" type="button" onClick={() => void load()} disabled={loading}>
@@ -347,7 +395,6 @@ export default function DashboardClient() {
                 <div className="surface-header">
                   <div>
                     <h2 id="cash-flow-title">Cash flow &amp; monthly spending</h2>
-                    <p>12-month trajectory of income vs. stacked category expenses with per-month figures.</p>
                   </div>
                   <div className="chart-header-badges">
                     {selectedMonthKey ? (
@@ -389,31 +436,31 @@ export default function DashboardClient() {
                             <div className="inspector-stats">
                               <div className="inspector-stat">
                                 <span className="stat-name">Spent:</span>
-                                <strong className="stat-val expense-val">{formatMoney(activeMonth.expenses)}</strong>
+                                <strong className="stat-val expense-val">{formatMoney(activeMonthVisibleExpense)}</strong>
                               </div>
                               <div className="inspector-stat">
                                 <span className="stat-name">Income:</span>
-                                <strong className="stat-val income-val">{formatMoney(activeMonth.income)}</strong>
+                                <strong className={`stat-val income-val${isIncomeHidden ? " muted" : ""}`}>{formatMoney(activeMonthVisibleIncome)}</strong>
                               </div>
                               <div className="inspector-stat">
                                 <span className="stat-name">Net:</span>
-                                <strong className={`stat-val ${activeMonth.income - activeMonth.expenses >= 0 ? "income-val" : "expense-val"}`}>
-                                  {formatMoney(activeMonth.income - activeMonth.expenses)}
+                                <strong className={`stat-val ${activeMonthNet >= 0 ? "income-val" : "expense-val"}`}>
+                                  {formatMoney(activeMonthNet)}
                                 </strong>
                               </div>
                             </div>
                           </div>
-                          {activeMonth.expensesByCategory && activeMonth.expensesByCategory.length > 0 ? (
+                          {activeMonthVisibleCategories.length > 0 ? (
                             <div className="inspector-categories">
-                              {activeMonth.expensesByCategory.slice(0, 5).map((cat) => (
+                              {activeMonthVisibleCategories.slice(0, 5).map((cat) => (
                                 <span key={cat.id || cat.name} className="inspector-cat-pill">
                                   <i className="cat-color-dot" style={{ backgroundColor: cat.color }} />
                                   <span className="cat-name">{cat.name}</span>
                                   <strong className="cat-amt">{formatMoney(cat.amountCents)}</strong>
                                 </span>
                               ))}
-                              {activeMonth.expensesByCategory.length > 5 ? (
-                                <span className="inspector-more-pill">+{activeMonth.expensesByCategory.length - 5} more</span>
+                              {activeMonthVisibleCategories.length > 5 ? (
+                                <span className="inspector-more-pill">+{activeMonthVisibleCategories.length - 5} more</span>
                               ) : null}
                             </div>
                           ) : null}
@@ -433,10 +480,16 @@ export default function DashboardClient() {
                             const isSelected = selectedMonthKey === month.key;
                             const isHovered = hoveredMonthKey === month.key;
                             const isActive = isSelected || isHovered;
-                            const hasCategoryExpenses = month.expensesByCategory && month.expensesByCategory.length > 0;
+                            const visibleCategoryExpenses = (month.expensesByCategory || []).filter(
+                              (cat) => !hiddenCategories.has(cat.name)
+                            );
+                            const visibleExpense = month.expensesByCategory
+                              ? visibleCategoryExpenses.reduce((sum, cat) => sum + cat.amountCents, 0)
+                              : (hiddenCategories.size > 0 ? 0 : month.expenses);
+                            const visibleIncome = isIncomeHidden ? 0 : month.income;
 
-                            const incomeHeight = Math.max((month.income / maxBar) * 100, month.income ? 4 : 0);
-                            const expenseHeight = Math.max((month.expenses / maxBar) * 100, month.expenses ? 4 : 0);
+                            const incomeHeight = Math.max((visibleIncome / maxBar) * 100, visibleIncome ? 4 : 0);
+                            const expenseHeight = Math.max((visibleExpense / maxBar) * 100, visibleExpense ? 4 : 0);
 
                             return (
                               <div
@@ -452,46 +505,58 @@ export default function DashboardClient() {
                                     setSelectedMonthKey(selectedMonthKey === month.key ? null : month.key);
                                   }
                                 }}
-                                aria-label={`${month.label}: Spent ${formatMoney(month.expenses)}, Income ${formatMoney(month.income)}`}
+                                aria-label={`${month.label}: Spent ${formatMoney(visibleExpense)}, Income ${formatMoney(visibleIncome)}`}
                               >
                                 <div className="chart-bars">
                                   {/* Income Bar */}
-                                  <span
-                                    className="bar bar-income"
-                                    style={{ height: `${incomeHeight}%` }}
-                                    title={`Income: ${formatMoney(month.income)}`}
-                                  />
+                                  {!isIncomeHidden && (
+                                    <span
+                                      className="bar bar-income"
+                                      style={{
+                                        height: `${incomeHeight}%`,
+                                        opacity: visibleIncome > 0 ? 1 : 0,
+                                        minHeight: visibleIncome > 0 ? undefined : 0,
+                                      }}
+                                      title={`Income: ${formatMoney(month.income)}`}
+                                    />
+                                  )}
                                   {/* Stacked Expense Bar */}
-                                  <div
-                                    className="bar-stacked-expense"
-                                    style={{ height: `${expenseHeight}%` }}
-                                    title={`Spend: ${formatMoney(month.expenses)}`}
-                                  >
-                                    {hasCategoryExpenses ? (
-                                      month.expensesByCategory!.map((cat) => (
+                                  {(visibleExpense > 0 || !hiddenCategories.size) && (
+                                    <div
+                                      className="bar-stacked-expense"
+                                      style={{
+                                        height: `${expenseHeight}%`,
+                                        opacity: visibleExpense > 0 ? 1 : 0,
+                                        minHeight: visibleExpense > 0 ? undefined : 0,
+                                      }}
+                                      title={`Spend: ${formatMoney(visibleExpense)}`}
+                                    >
+                                      {visibleCategoryExpenses.length > 0 ? (
+                                        visibleCategoryExpenses.map((cat) => (
+                                          <span
+                                            key={cat.id || cat.name}
+                                            className={`bar-segment${hoveredCategory === cat.name ? " is-highlighted" : ""}`}
+                                            style={{
+                                              height: `${visibleExpense > 0 ? (cat.amountCents / visibleExpense) * 100 : 0}%`,
+                                              backgroundColor: cat.color || "var(--signal)",
+                                            }}
+                                            title={`${cat.name}: ${formatMoney(cat.amountCents)}`}
+                                          />
+                                        ))
+                                      ) : (
                                         <span
-                                          key={cat.id || cat.name}
                                           className="bar-segment"
-                                          style={{
-                                            height: `${month.expenses > 0 ? (cat.amountCents / month.expenses) * 100 : 0}%`,
-                                            backgroundColor: cat.color || "var(--signal)",
-                                          }}
-                                          title={`${cat.name}: ${formatMoney(cat.amountCents)}`}
+                                          style={{ height: "100%", backgroundColor: "var(--signal)" }}
+                                          title={`Spend: ${formatMoney(visibleExpense)}`}
                                         />
-                                      ))
-                                    ) : (
-                                      <span
-                                        className="bar-segment"
-                                        style={{ height: "100%", backgroundColor: "var(--signal)" }}
-                                        title={`Spend: ${formatMoney(month.expenses)}`}
-                                      />
-                                    )}
-                                  </div>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
 
                                 {/* Month Spend Badge (Clear Month-by-Month Spend visibility) */}
-                                <div className="chart-spend-pill" title={`Total spent in ${month.label}: ${formatMoney(month.expenses)}`}>
-                                  {formatCompactMoney(month.expenses)}
+                                <div className="chart-spend-pill" title={`Total spent in ${month.label}: ${formatMoney(visibleExpense)}`}>
+                                  {formatCompactMoney(visibleExpense)}
                                 </div>
 
                                 {/* Month Name Label */}
@@ -503,19 +568,47 @@ export default function DashboardClient() {
                       </div>
 
                       {/* Interactive Chart Legend */}
-                      <div className="chart-legend">
-                        <span className="legend-item"><i className="legend-dot legend-dot-income" />Income</span>
-                        {analytics?.categoryBreakdown.filter((c) => c.amountCents > 0).map((cat) => (
-                          <span
-                            key={cat.name}
-                            className={`legend-item${hoveredCategory === cat.name ? " is-highlighted" : ""}`}
-                            onMouseEnter={() => setHoveredCategory(cat.name)}
-                            onMouseLeave={() => setHoveredCategory(null)}
+                      <div className="chart-legend" role="toolbar" aria-label="Toggle chart series">
+                        <button
+                          type="button"
+                          className={`legend-item legend-toggle-btn${isIncomeHidden ? " is-disabled" : ""}`}
+                          onClick={toggleIncome}
+                          aria-pressed={!isIncomeHidden}
+                          title={isIncomeHidden ? "Click to show Income on graph" : "Click to hide Income on graph"}
+                        >
+                          <i className="legend-dot legend-dot-income" />
+                          <span>Income</span>
+                        </button>
+                        {analytics?.categoryBreakdown.filter((c) => c.amountCents > 0).map((cat) => {
+                          const isHidden = hiddenCategories.has(cat.name);
+                          const isHovered = hoveredCategory === cat.name;
+                          return (
+                            <button
+                              key={cat.name}
+                              type="button"
+                              className={`legend-item legend-toggle-btn${isHovered ? " is-highlighted" : ""}${isHidden ? " is-disabled" : ""}`}
+                              onClick={() => toggleCategory(cat.name)}
+                              onMouseEnter={() => setHoveredCategory(cat.name)}
+                              onMouseLeave={() => setHoveredCategory(null)}
+                              aria-pressed={!isHidden}
+                              title={isHidden ? `Click to show ${cat.name} on graph` : `Click to hide ${cat.name} on graph`}
+                            >
+                              <i className="legend-dot" style={{ backgroundColor: cat.color }} />
+                              <span>{cat.name}</span>
+                            </button>
+                          );
+                        })}
+                        {isIncomeHidden || hiddenCategories.size > 0 ? (
+                          <button
+                            type="button"
+                            className="legend-reset-btn"
+                            onClick={showAllSeries}
+                            title="Show all series on graph"
                           >
-                            <i className="legend-dot" style={{ backgroundColor: cat.color }} />
-                            {cat.name}
-                          </span>
-                        ))}
+                            <Icon name="refresh" className="icon-xs" />
+                            <span>Show all</span>
+                          </button>
+                        ) : null}
                       </div>
                     </>
                   )}
@@ -527,7 +620,6 @@ export default function DashboardClient() {
                 <div className="surface-header">
                   <div>
                     <h2 id="distribution-title">Spend distribution &amp; intelligence</h2>
-                    <p>Interactive breakdown across categories, lifestyle settings, and monthly records.</p>
                   </div>
 
                   {/* View Segmented Tabs */}
@@ -790,12 +882,6 @@ export default function DashboardClient() {
                             );
                           })}
 
-                          <div className="lifestyle-callout">
-                            <Icon name="info" className="icon-sm" />
-                            <span>
-                              <strong>Orthogonal Dimension:</strong> Social and dating tags are independent of categories, letting you view spending habits without changing your ledger taxonomy.
-                            </span>
-                          </div>
                         </div>
                       </div>
                     )
@@ -875,7 +961,6 @@ export default function DashboardClient() {
                 <div className="surface-header">
                   <div>
                     <h2 id="recent-title">Recent transactions</h2>
-                    <p>The latest stations on your ledger.</p>
                   </div>
                   <Link className="text-button" href="/transactions">View all</Link>
                 </div>
@@ -920,7 +1005,6 @@ export default function DashboardClient() {
                 <div className="surface-header">
                   <div>
                     <h2 id="social-title">The social line</h2>
-                    <p>Social is a dimension, not a category.</p>
                   </div>
                   <Icon name="users" className="icon-lg" />
                 </div>
@@ -974,7 +1058,6 @@ export default function DashboardClient() {
                 <div className="surface-header">
                   <div>
                     <h2 id="merchant-title">Top merchants</h2>
-                    <p>Highest total spend in the current view.</p>
                   </div>
                   <Icon name="arrow-up-right" className="icon-lg" />
                 </div>
@@ -1007,7 +1090,6 @@ export default function DashboardClient() {
                 <div className="surface-header">
                   <div>
                     <h2 id="recurring-title">Likely recurring</h2>
-                    <p>Signals, not promises.</p>
                   </div>
                   <Icon name="refresh" className="icon-lg" />
                 </div>

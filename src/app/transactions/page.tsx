@@ -136,7 +136,6 @@ function TransactionForm({
       <div className="surface-header">
         <div>
           <h2 id="transaction-form-title">{editing ? "Edit transaction" : "Add a transaction"}</h2>
-          <p>{editing ? "Correct the record; the change is audited." : "Keep the capture path short."}</p>
         </div>
         {editing ? <button className="button button-quiet" type="button" onClick={onCancel}>Cancel</button> : null}
       </div>
@@ -211,7 +210,6 @@ function TransactionsWorkspace() {
   const [datingOnly, setDatingOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [pageCount, setPageCount] = useState(1);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -235,7 +233,6 @@ function TransactionsWorkspace() {
       const result = await apiFetch<{ transactions: Transaction[]; pagination: { pageCount: number; total: number } }>(`/api/transactions?${params}`);
       setTransactions(result.transactions);
       setPageCount(result.pagination.pageCount);
-      setTotal(result.pagination.total);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to load transactions.");
     } finally {
@@ -284,14 +281,13 @@ function TransactionsWorkspace() {
   return (
     <AppShell
       title="Transactions"
-      description="Every row is a station: editable, categorized, and kept on your machine."
       actions={<Link className="button button-primary" href="/mobile"><Icon name="plus" className="icon-sm" />Add</Link>}
     >
       {error ? <div className="form-error" role="alert" style={{ marginBottom: 18 }}>{error}</div> : null}
       <div className="workspace-grid">
         <section className="surface" aria-labelledby="transaction-list-title">
           <div className="surface-header">
-            <div><h2 id="transaction-list-title">The ledger</h2><p>{total} record{total === 1 ? "" : "s"} in the current view.</p></div>
+            <div><h2 id="transaction-list-title">The ledger</h2></div>
           </div>
           <div className="table-toolbar">
             <div className="toolbar-filters">
