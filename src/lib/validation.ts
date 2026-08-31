@@ -55,8 +55,23 @@ export const learnPredictionSchema = z.object({
 });
 
 export const importReviewSchema = z.object({
-  status: z.enum(["ready", "review", "ignored"]),
+  status: z.enum(["ready", "review", "ignored"]).optional(),
   categoryId: z.string().min(1).max(80).nullable().optional(),
+  notes: z.string().trim().max(500).nullable().optional(),
+  merchantRaw: z.string().trim().min(1).max(255).optional(),
+  amountCents: z.number().int().positive().max(100_000_000).optional(),
+  amountRaw: z.string().trim().max(50).optional(),
+  direction: directionSchema.optional(),
+  date: z.coerce.date().nullable().optional(),
+});
+
+export const importAddRowSchema = z.object({
+  merchantRaw: z.string().trim().min(1).max(255),
+  amountCents: z.number().int().positive().max(100_000_000),
+  direction: directionSchema.default("expense"),
+  date: z.coerce.date().optional(),
+  categoryId: z.string().min(1).max(80).nullable().optional(),
+  status: z.enum(["ready", "review", "ignored"]).default("ready"),
   notes: z.string().trim().max(500).nullable().optional(),
 });
 
@@ -72,7 +87,14 @@ export function parseAmountToCents(value: string) {
 }
 
 export function formatCurrency(amountCents: number, direction?: string) {
-  const sign = direction === "income" ? "+" : direction === "expense" ? "-" : "";
+  let sign = "";
+  if (direction === "income") {
+    sign = "+";
+  } else if (direction === "expense") {
+    sign = "-";
+  } else if (amountCents < 0) {
+    sign = "-";
+  }
   return `${sign}${new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",

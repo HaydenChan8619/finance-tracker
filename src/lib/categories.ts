@@ -1,5 +1,17 @@
 import { normalizeMerchant } from "@/lib/security";
 
+export const CATEGORY_COLORS: Record<string, string> = {
+  Food: "#f59e0b",
+  Entertainment: "#8b5cf6",
+  Income: "#10b981",
+  Personal: "#ec4899",
+  Driving: "#3b82f6",
+  Housing: "#e11d48",
+  Education: "#06b6d4",
+  Transport: "#6366f1",
+  Misc: "#64748b",
+};
+
 export type CategoryReference = {
   id: string;
   name: string;
@@ -40,8 +52,12 @@ const KEYWORD_RULES: Array<{ keywords: string[]; category: string }> = [
     category: "Dining",
   },
   {
-    keywords: ["uber", "lyft", "transit", "metro", "parking", "gas", "shell", "chevron"],
-    category: "Transportation",
+    keywords: ["gas", "chevron", "shell", "exxon", "mobil", "parking", "toll", "fastrak", "valet", "car wash", "oil change", "auto repair", "driving"],
+    category: "Driving",
+  },
+  {
+    keywords: ["uber", "lyft", "transit", "metro", "subway", "train", "amtrak", "bus", "flight", "airline", "delta", "united", "american air", "transport", "transportation", "clipper", "mta"],
+    category: "Transport",
   },
   {
     keywords: ["netflix", "spotify", "apple.com/bill", "hulu", "prime video", "subscription"],
@@ -56,7 +72,7 @@ const KEYWORD_RULES: Array<{ keywords: string[]; category: string }> = [
     category: "Entertainment",
   },
   {
-    keywords: ["rent", "mortgage", "property management"],
+    keywords: ["rent", "mortgage", "property management", "landlord", "hoa", "apartment", "utilities", "electric", "water bill", "coned", "internet", "housing"],
     category: "Housing",
   },
   {
@@ -66,6 +82,46 @@ const KEYWORD_RULES: Array<{ keywords: string[]; category: string }> = [
   {
     keywords: ["pharmacy", "doctor", "clinic", "dental", "health"],
     category: "Health",
+  },
+  {
+    keywords: [
+      "udemy",
+      "coursera",
+      "chegg",
+      "edx",
+      "masterclass",
+      "tuition",
+      "university",
+      "college",
+      "school",
+      "course",
+      "textbook",
+      "audible",
+      "duolingo",
+      "education",
+      "skillshare",
+      "academy",
+      "bookstore",
+    ],
+    category: "Education",
+  },
+  {
+    keywords: [
+      "payroll",
+      "salary",
+      "direct dep",
+      "paycheck",
+      "deposit",
+      "bonus",
+      "wage",
+      "stipend",
+      "dividend",
+      "interest income",
+      "reimbursement",
+      "transfer in",
+      "income",
+    ],
+    category: "Income",
   },
 ];
 
@@ -111,19 +167,21 @@ export function predictCategory(
     }
   }
 
-  const keywordRule = KEYWORD_RULES.find((rule) =>
-    rule.keywords.some((keyword) => normalized.includes(normalizeMerchant(keyword))),
-  );
-  if (keywordRule) {
-    const category = categoryByName(categories, keywordRule.category);
-    if (category) {
-      return {
-        categoryId: category.id,
-        categoryName: category.name,
-        source: "keyword",
-        confidence: "medium",
-        reason: `Matched the built-in ${keywordRule.category.toLocaleLowerCase()} pattern.`,
-      };
+  for (const keywordRule of KEYWORD_RULES) {
+    const matches = keywordRule.keywords.some((keyword) =>
+      normalized.includes(normalizeMerchant(keyword)),
+    );
+    if (matches) {
+      const category = categoryByName(categories, keywordRule.category);
+      if (category) {
+        return {
+          categoryId: category.id,
+          categoryName: category.name,
+          source: "keyword",
+          confidence: "medium",
+          reason: `Matched the built-in ${keywordRule.category.toLocaleLowerCase()} pattern.`,
+        };
+      }
     }
   }
 

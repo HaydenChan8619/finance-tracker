@@ -1,9 +1,21 @@
 import { requireAdmin } from "@/lib/auth";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
-import { detectInBatch, parsePdfBuffer, parseStatementText, PARSER_VERSION, type ParsedImportRow } from "@/lib/importer";
+import {
+  detectInBatch,
+  parseImageBuffer,
+  parsePdfBuffer,
+  parseStatementText,
+  PARSER_VERSION,
+  OCR_PARSER_VERSION,
+  PDF_PARSER_VERSION,
+  type ParsedImportRow,
+} from "@/lib/importer";
+import { predictCategory } from "@/lib/categories";
 
 export const runtime = "nodejs";
+
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "bmp", "tiff", "tif"]);
 
 function serializeBatch(batch: {
   id: string;
@@ -64,7 +76,7 @@ async function annotateDuplicates(rows: ParsedImportRow[]) {
         ...row,
         status: "review" as const,
         duplicateKind: "exact",
-        reviewNote: "An identical transaction already exists.",
+        reviewNote: "An identical transaction already exists in the ledger.",
       };
     }
     if (possible) {
@@ -79,10 +91,22 @@ async function annotateDuplicates(rows: ParsedImportRow[]) {
   });
 }
 
-function importRowData(row: ParsedImportRow) {
+function importRowData(
+  row: ParsedImportRow,
+  categories: Array<{ id: string; name: string; color: string }>,
+  rules: Array<{ pattern: string; categoryId: string; priority: number }>,
+) {
+  let categoryId: string | null = null;
+  if (row.normalizedMerchant) {
+    const prediction = predictCategory(row.normalizedMerchant, categories, [], rules);
+    if (prediction.categoryId) {
+      categoryId = prediction.categoryId;
+    }
+  }
+
   return {
     date: row.date,
-    merchantRaw: row.merchantRaw || "Needs review",
+    merchantRaw: row.merchantRaw || "Transaction",
     amountRaw: row.amountRaw,
     transactionTypeRaw: row.transactionTypeRaw,
     sourcePage: row.sourcePage,
@@ -90,6 +114,7 @@ function importRowData(row: ParsedImportRow) {
     normalizedMerchant: row.normalizedMerchant,
     amountCents: row.amountCents,
     direction: row.direction,
+    categoryId,
     status: row.status,
     reviewNote: row.reviewNote,
   };
@@ -114,30 +139,68 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get("file");
     if (!(file instanceof File)) {
-      return jsonError("Choose a PDF or text statement first.", 422);
+      return jsonError("Choose a statement image, PDF, or text file first.", 422);
     }
-    if (file.size > 20 * 1024 * 1024) {
-      return jsonError("Statement files must be smaller than 20 MB.", 413);
+    if (file.size > 25 * 1024 * 1024) {
+      return jsonError("Statement files must be smaller than 25 MB.", 413);
     }
 
-    const extension = file.name.toLocaleLowerCase("en-US").split(".").pop();
-    if (extension !== "pdf" && extension !== "txt") {
-      return jsonError("Only PDF and text statement files are supported.", 415);
+    const extension = file.name.toLocaleLowerCase("en-US").split(".").pop() || "";
+    const isImage = IMAGE_EXTENSIONS.has(extension) || file.type.startsWith("image/");
+    const isPdf = extension === "pdf" || file.type === "application/pdf";
+    const isText = extension === "txt" || extension === "csv" || file.type.startsWith("text/");
+
+    if (!isImage && !isPdf && !isText) {
+      return jsonError("Supported formats: Images (PNG, JPG, WEBP), PDF, and text/CSV statement files.", 415);
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const parsed = extension === "pdf" ? await parsePdfBuffer(buffer) : parseStatementText(buffer.toString("utf8"));
+    let parsed: ParsedImportRow[] = [];
+    let parserVersion = PARSER_VERSION;
+
+    if (isImage) {
+      parserVersion = OCR_PARSER_VERSION;
+      parsed = await parseImageBuffer(buffer);
+    } else if (isPdf) {
+      parserVersion = PDF_PARSER_VERSION;
+      parsed = await parsePdfBuffer(buffer);
+      if (!parsed.length) {
+        // Fallback: If PDF had no embedded text (scanned PDF), try OCR on image buffer
+        try {
+          parsed = await parseImageBuffer(buffer);
+          if (parsed.length) {
+            parserVersion = OCR_PARSER_VERSION;
+          }
+        } catch {
+          // ignore fallback error
+        }
+      }
+    } else {
+      parserVersion = PARSER_VERSION;
+      parsed = parseStatementText(buffer.toString("utf8"));
+    }
+
     const rows = await annotateDuplicates(detectInBatch(parsed));
     if (!rows.length) {
-      return jsonError("No transaction rows were detected. This may be a scanned PDF or an unsupported statement layout.", 422);
+      return jsonError(
+        "No transaction rows could be recognized in this file. Please ensure the image is clear and legible, or upload a standard bank statement.",
+        422,
+      );
     }
+
+    const [categories, rules] = await Promise.all([
+      prisma.category.findMany(),
+      prisma.categoryRule.findMany(),
+    ]);
+
     const dates = rows.map((row) => row.date?.getTime()).filter((value): value is number => value !== undefined);
     const parsedRows = rows.filter((row) => row.status === "ready").length;
     const duplicateRows = rows.filter((row) => row.duplicateKind).length;
+
     const batch = await prisma.importBatch.create({
       data: {
         sourceFilename: file.name.slice(0, 255),
-        parserVersion: PARSER_VERSION,
+        parserVersion,
         status: "review",
         totalRows: rows.length,
         parsedRows,
@@ -146,17 +209,18 @@ export async function POST(request: Request) {
         statementPeriodStart: dates.length ? new Date(Math.min(...dates)) : null,
         statementPeriodEnd: dates.length ? new Date(Math.max(...dates)) : null,
         importedTransactions: {
-          create: rows.map(importRowData),
+          create: rows.map((row) => importRowData(row, categories, rules)),
         },
       },
     });
+
     await prisma.auditLog.create({
       data: {
         userId: session.userId,
         action: "create",
         entityType: "import_batch",
         entityId: batch.id,
-        details: JSON.stringify({ sourceFilename: file.name, rows: rows.length }),
+        details: JSON.stringify({ sourceFilename: file.name, rows: rows.length, parserVersion }),
       },
     });
 

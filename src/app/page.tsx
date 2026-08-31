@@ -31,7 +31,7 @@ export default function HomePage() {
             Keep the record <em>yours.</em>
           </h1>
           <p className="public-hero-copy">
-            A small, self-hosted finance tracker for quick capture, honest categories, and the
+            A small, self-hosted finance tracker for adding transactions, honest categories, and the
             spending patterns you actually want to see.
           </p>
           <div className="public-actions">

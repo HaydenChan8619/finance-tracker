@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  serverExternalPackages: ["tesseract.js", "pdf-parse"],
   async headers() {
     const scriptSource = process.env.NODE_ENV === "development"
       ? "'self' 'unsafe-inline' 'unsafe-eval'"

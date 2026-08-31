@@ -1,15 +1,24 @@
 import { prisma } from "@/lib/prisma";
+import { CATEGORY_COLORS } from "@/lib/categories";
 
 type TransactionWithCategory = Awaited<
   ReturnType<typeof prisma.transaction.findMany<{ include: { category: true } }>>
 >[number];
 
-type MonthBucket = {
+export type MonthCategoryExpense = {
+  id: string;
+  name: string;
+  color: string;
+  amountCents: number;
+};
+
+export type MonthBucket = {
   key: string;
   label: string;
   income: number;
   expenses: number;
   social: number;
+  expensesByCategory: MonthCategoryExpense[];
 };
 
 function monthStart(date: Date) {
@@ -23,7 +32,6 @@ function monthKey(date: Date) {
 function monthLabel(date: Date) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
-    year: "numeric",
     timeZone: "UTC",
   }).format(date);
 }
@@ -84,24 +92,29 @@ function findRecurring(transactions: TransactionWithCategory[]) {
 export async function getAnalytics() {
   const now = new Date();
   const currentMonth = monthStart(now);
-  const sixMonthsAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1));
+  const twelveMonthsAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, 1));
   const transactions = await prisma.transaction.findMany({
-    where: { date: { gte: sixMonthsAgo, lte: now } },
+    where: { date: { gte: twelveMonthsAgo, lte: now } },
     include: { category: true },
     orderBy: { date: "desc" },
   });
 
-  const months: MonthBucket[] = Array.from({ length: 6 }, (_, index) => {
-    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (5 - index), 1));
+  const months: MonthBucket[] = Array.from({ length: 12 }, (_, index) => {
+    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (11 - index), 1));
     return {
       key: monthKey(date),
       label: monthLabel(date),
       income: 0,
       expenses: 0,
       social: 0,
+      expensesByCategory: [],
     };
   });
   const monthLookup = new Map(months.map((month) => [month.key, month]));
+  const monthCategoryMap = new Map<string, Map<string, MonthCategoryExpense>>();
+  for (const month of months) {
+    monthCategoryMap.set(month.key, new Map());
+  }
 
   const categoryTotals = new Map<string, { name: string; color: string; amountCents: number }>();
   const socialCategoryTotals = new Map<string, { name: string; color: string; amountCents: number }>();
@@ -112,7 +125,8 @@ export async function getAnalytics() {
   let socialExpenses = 0;
 
   for (const transaction of transactions) {
-    const bucket = monthLookup.get(monthKey(transaction.date));
+    const mKey = monthKey(transaction.date);
+    const bucket = monthLookup.get(mKey);
     if (transaction.direction === "income") {
       totalIncome += transaction.amountCents;
       if (bucket) {
@@ -133,9 +147,24 @@ export async function getAnalytics() {
     }
 
     const categoryKey = transaction.category?.id ?? "uncategorized";
+    const categoryName = transaction.category?.name ?? "Misc";
+    const categoryColor = transaction.category?.color || CATEGORY_COLORS[categoryName] || "#64748b";
+
+    const catMap = monthCategoryMap.get(mKey);
+    if (catMap) {
+      const existing = catMap.get(categoryKey) ?? {
+        id: categoryKey,
+        name: categoryName,
+        color: categoryColor,
+        amountCents: 0,
+      };
+      existing.amountCents += transaction.amountCents;
+      catMap.set(categoryKey, existing);
+    }
+
     const category = categoryTotals.get(categoryKey) ?? {
-      name: transaction.category?.name ?? "Uncategorized",
-      color: transaction.category?.color ?? "#87938f",
+      name: categoryName,
+      color: categoryColor,
       amountCents: 0,
     };
     category.amountCents += transaction.amountCents;
@@ -143,8 +172,8 @@ export async function getAnalytics() {
 
     if (transaction.isSocial) {
       const socialCategory = socialCategoryTotals.get(categoryKey) ?? {
-        name: transaction.category?.name ?? "Uncategorized",
-        color: transaction.category?.color ?? "#87938f",
+        name: categoryName,
+        color: categoryColor,
         amountCents: 0,
       };
       socialCategory.amountCents += transaction.amountCents;
@@ -172,6 +201,13 @@ export async function getAnalytics() {
     }
   }
 
+  for (const month of months) {
+    const catMap = monthCategoryMap.get(month.key);
+    month.expensesByCategory = catMap
+      ? [...catMap.values()].sort((a, b) => b.amountCents - a.amountCents)
+      : [];
+  }
+
   const latestMonth = months[months.length - 1];
   const previousMonth = months[months.length - 2];
   const monthOverMonth =
@@ -181,7 +217,7 @@ export async function getAnalytics() {
 
   return {
     period: {
-      from: sixMonthsAgo.toISOString(),
+      from: twelveMonthsAgo.toISOString(),
       to: now.toISOString(),
       currentMonth: currentMonth.toISOString(),
     },

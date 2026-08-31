@@ -1,7 +1,8 @@
 import { requireAdmin } from "@/lib/auth";
 import { handleRouteError, jsonError, jsonOk, readJson } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
-import { importReviewSchema } from "@/lib/validation";
+import { normalizeMerchant } from "@/lib/security";
+import { formatCurrency, importReviewSchema } from "@/lib/validation";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -37,7 +38,7 @@ export async function GET(request: Request, context: RouteContext) {
       where: { id },
       include: {
         importedTransactions: {
-          orderBy: [{ status: "asc" }, { date: "asc" }],
+          orderBy: [{ date: "asc" }, { createdAt: "asc" }],
           include: { category: true },
         },
       },
@@ -96,15 +97,46 @@ export async function PATCH(request: Request, context: RouteContext) {
       return jsonError("Selected category was not found.", 422);
     }
 
+    const newMerchant = input.merchantRaw !== undefined ? input.merchantRaw : existing.merchantRaw;
+    const normalizedMerchant = newMerchant ? normalizeMerchant(newMerchant) : existing.normalizedMerchant;
+    const newAmountCents = input.amountCents !== undefined ? input.amountCents : existing.amountCents;
+    const newDirection = input.direction !== undefined ? input.direction : existing.direction;
+    const newDate = input.date !== undefined ? input.date : existing.date;
+    const newStatus = input.status !== undefined ? input.status : existing.status;
+
+    // Check duplicate status if key attributes changed
+    let duplicateKind = existing.duplicateKind;
+    if (newDate && newAmountCents && normalizedMerchant) {
+      const match = await prisma.transaction.findFirst({
+        where: {
+          date: newDate,
+          amountCents: newAmountCents,
+        },
+      });
+      if (match) {
+        duplicateKind = match.normalizedMerchant === normalizedMerchant ? "exact" : "probable";
+      } else {
+        duplicateKind = null;
+      }
+    }
+
     const row = await prisma.importedTransaction.update({
       where: { id: existing.id },
       data: {
-        status: input.status,
+        merchantRaw: newMerchant,
+        normalizedMerchant,
+        amountCents: newAmountCents,
+        amountRaw: input.amountRaw || (newAmountCents ? formatCurrency(newAmountCents, newDirection || undefined) : existing.amountRaw),
+        direction: newDirection,
+        date: newDate,
+        status: newStatus,
         categoryId: input.categoryId !== undefined ? input.categoryId : existing.categoryId,
-        reviewNote: input.notes !== undefined ? input.notes : existing.reviewNote,
+        reviewNote: input.notes !== undefined ? input.notes : (newStatus === "ready" ? null : existing.reviewNote),
+        duplicateKind,
       },
       include: { category: true },
     });
+
     const [reviewRows, parsedRows, duplicateRows] = await Promise.all([
       prisma.importedTransaction.count({ where: { importBatchId: id, status: "review" } }),
       prisma.importedTransaction.count({ where: { importBatchId: id, status: "ready" } }),
@@ -114,13 +146,14 @@ export async function PATCH(request: Request, context: RouteContext) {
       where: { id },
       data: { reviewRows, parsedRows, duplicateRows },
     });
+
     await prisma.auditLog.create({
       data: {
         userId: session.userId,
         action: "review",
         entityType: "imported_transaction",
         entityId: row.id,
-        details: JSON.stringify({ status: input.status, categoryId: input.categoryId }),
+        details: JSON.stringify({ status: row.status, merchant: row.merchantRaw, amountCents: row.amountCents }),
       },
     });
 

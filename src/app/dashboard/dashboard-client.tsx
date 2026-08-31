@@ -17,6 +17,13 @@ type Transaction = {
   isDating: boolean;
 };
 
+type MonthCategoryExpense = {
+  id: string;
+  name: string;
+  color: string;
+  amountCents: number;
+};
+
 type Analytics = {
   totals: {
     totalIncome: number;
@@ -26,7 +33,14 @@ type Analytics = {
     socialPercentage: number;
     monthOverMonth: number | null;
   };
-  months: Array<{ key: string; label: string; income: number; expenses: number; social: number }>;
+  months: Array<{
+    key: string;
+    label: string;
+    income: number;
+    expenses: number;
+    social: number;
+    expensesByCategory?: MonthCategoryExpense[];
+  }>;
   categoryBreakdown: Array<{ name: string; color: string; amountCents: number }>;
   socialByCategory: Array<{ name: string; color: string; amountCents: number }>;
   topMerchants: Array<{ merchant: string; amountCents: number; count: number }>;
@@ -89,7 +103,7 @@ export default function DashboardClient() {
           </button>
           <Link className="button button-primary" href="/mobile">
             <Icon name="plus" className="icon-sm" />
-            Quick capture
+            Add
           </Link>
         </>
       }
@@ -104,12 +118,12 @@ export default function DashboardClient() {
         <>
           <section className="metric-strip" aria-label="Financial summary">
             <div className="metric">
-              <span className="metric-label">Six-month income</span>
+              <span className="metric-label">12-month income</span>
               <strong className="metric-value">{formatMoney(analytics?.totals.totalIncome ?? 0)}</strong>
               <span className="metric-detail positive"><Icon name="arrow-up-right" className="icon-sm" /> Money in</span>
             </div>
             <div className="metric">
-              <span className="metric-label">Six-month spend</span>
+              <span className="metric-label">12-month spend</span>
               <strong className="metric-value">{formatMoney(analytics?.totals.totalExpenses ?? 0)}</strong>
               <span className={`metric-detail${(analytics?.totals.monthOverMonth ?? 0) > 0 ? " negative" : " positive"}`}>
                 {analytics?.totals.monthOverMonth === null || analytics?.totals.monthOverMonth === undefined
@@ -142,23 +156,62 @@ export default function DashboardClient() {
                 </div>
                 <div className="surface-body">
                   {analytics?.months.every((month) => month.income === 0 && month.expenses === 0) ? (
-                    <div className="empty-state"><div><strong>Your first route starts here.</strong><p>Add a transaction to make the six-month view useful.</p></div></div>
+                    <div className="empty-state"><div><strong>Your first route starts here.</strong><p>Add a transaction to make the 12-month view useful.</p></div></div>
                   ) : (
                     <>
-                      <div className="trend-chart" aria-label="Monthly income and expense bars">
-                        {analytics?.months.map((month) => (
-                          <div className="chart-column" key={month.key}>
-                            <div className="chart-bars">
-                              <span className="bar bar-income" style={{ height: `${Math.max((month.income / maxBar) * 100, month.income ? 3 : 0)}%` }} title={`Income ${formatMoney(month.income)}`} />
-                              <span className="bar bar-expense" style={{ height: `${Math.max((month.expenses / maxBar) * 100, month.expenses ? 3 : 0)}%` }} title={`Expenses ${formatMoney(month.expenses)}`} />
+                      <div className="trend-chart" aria-label="Monthly income and stacked expense bars">
+                        {analytics?.months.map((month) => {
+                          const hasCategoryExpenses = month.expensesByCategory && month.expensesByCategory.length > 0;
+                          return (
+                            <div className="chart-column" key={month.key}>
+                              <div className="chart-bars">
+                                <span
+                                  className="bar bar-income"
+                                  style={{ height: `${Math.max((month.income / maxBar) * 100, month.income ? 3 : 0)}%` }}
+                                  title={`Income: ${formatMoney(month.income)}`}
+                                />
+                                <div
+                                  className="bar-stacked-expense"
+                                  style={{ height: `${Math.max((month.expenses / maxBar) * 100, month.expenses ? 3 : 0)}%` }}
+                                  title={`Total Spend: ${formatMoney(month.expenses)}`}
+                                >
+                                  {hasCategoryExpenses ? (
+                                    month.expensesByCategory!.map((cat) => (
+                                      <span
+                                        key={cat.id || cat.name}
+                                        className="bar-segment"
+                                        style={{
+                                          height: `${month.expenses > 0 ? (cat.amountCents / month.expenses) * 100 : 0}%`,
+                                          backgroundColor: cat.color || "var(--signal)",
+                                        }}
+                                        title={`${cat.name}: ${formatMoney(cat.amountCents)}`}
+                                      />
+                                    ))
+                                  ) : (
+                                    <span
+                                      className="bar-segment"
+                                      style={{ height: "100%", backgroundColor: "var(--signal)" }}
+                                      title={`Spend: ${formatMoney(month.expenses)}`}
+                                    />
+                                  )}
+                                </div>
+                              </div>
+                              <span className="chart-label">{month.label}</span>
                             </div>
-                            <span className="chart-label">{month.label}</span>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                       <div className="chart-legend">
                         <span><i className="legend-dot legend-dot-income" />Income</span>
-                        <span><i className="legend-dot legend-dot-expense" />Expenses</span>
+                        {analytics?.categoryBreakdown.filter((c) => c.amountCents > 0).map((cat) => (
+                          <span key={cat.name}>
+                            <i className="legend-dot" style={{ backgroundColor: cat.color }} />
+                            {cat.name}
+                          </span>
+                        ))}
+                        {(!analytics?.categoryBreakdown || analytics.categoryBreakdown.filter((c) => c.amountCents > 0).length === 0) ? (
+                          <span><i className="legend-dot legend-dot-expense" />Expenses</span>
+                        ) : null}
                       </div>
                     </>
                   )}
@@ -183,8 +236,9 @@ export default function DashboardClient() {
                             <span className="ledger-name">{transaction.merchant}</span>
                             <span className="ledger-subline">
                               <span className="category-pill">{transaction.category?.name ?? "Uncategorized"}</span>
+                              <span className="ledger-subline-date muted">· {shortDate(transaction.date)}</span>
                               {transaction.isSocial ? <span className="social-pill"><Icon name="users" className="icon-sm" /> Social</span> : null}
-                              {transaction.isDating ? <span className="dating-pill"><Icon name="spark" className="icon-sm" /> Dating</span> : null}
+                              {transaction.isDating ? <span className="dating-pill"><Icon name="heart" className="icon-sm" /> Dating</span> : null}
                             </span>
                           </span>
                         </div>
@@ -196,7 +250,7 @@ export default function DashboardClient() {
                     ))}
                   </div>
                 ) : (
-                  <div className="empty-state"><div><strong>No transactions yet.</strong><p>Use Quick capture to add the first one.</p></div></div>
+                  <div className="empty-state"><div><strong>No transactions yet.</strong><p>Use Add to create the first one.</p></div></div>
                 )}
               </section>
             </div>
@@ -212,7 +266,7 @@ export default function DashboardClient() {
                 </div>
                 <div className="surface-body">
                   <strong className="metric-value">{formatMoney(analytics?.totals.socialExpenses ?? 0)}</strong>
-                  <p className="muted">{analytics?.totals.socialPercentage ?? 0}% of tracked spend across the last six months</p>
+                  <p className="muted">{analytics?.totals.socialPercentage ?? 0}% of tracked spend across the last 12 months</p>
                   <div className="insight-list">
                     {analytics?.socialByCategory.filter((item) => item.amountCents > 0).slice(0, 3).map((item) => (
                       <div className="insight-row" key={item.name}>

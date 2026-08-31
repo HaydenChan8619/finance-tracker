@@ -72,7 +72,23 @@ function TransactionForm({
   }, [editing]);
 
   function update<K extends keyof EditorValues>(key: K, value: EditorValues[K]) {
-    setValues((current) => ({ ...current, [key]: value }));
+    setValues((current) => {
+      const next = { ...current, [key]: value };
+      if (key === "categoryId") {
+        const cat = categories.find((c) => c.id === value);
+        if (cat?.name.toLowerCase() === "income") {
+          next.direction = "income";
+          next.isSocial = false;
+          next.isDating = false;
+        }
+      } else if (key === "direction") {
+        if (value === "income") {
+          next.isSocial = false;
+          next.isDating = false;
+        }
+      }
+      return next;
+    });
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -83,6 +99,9 @@ function TransactionForm({
       setError("Enter a valid positive amount, such as 18.50.");
       return;
     }
+    const miscCategory = categories.find((c) => c.name.toLowerCase() === "misc");
+    const finalCategoryId = values.categoryId || miscCategory?.id || null;
+
     setSaving(true);
     try {
       const payload = {
@@ -90,7 +109,7 @@ function TransactionForm({
         amountCents,
         direction: values.direction,
         date: new Date(`${values.date}T12:00:00`).toISOString(),
-        categoryId: values.categoryId || null,
+        categoryId: finalCategoryId,
         isSocial: values.direction === "expense" && values.isSocial,
         isDating: values.direction === "expense" && values.isDating,
         notes: values.notes || null,
@@ -265,7 +284,7 @@ function TransactionsWorkspace() {
     <AppShell
       title="Transactions"
       description="Every row is a station: editable, categorized, and kept on your machine."
-      actions={<Link className="button button-primary" href="/mobile"><Icon name="plus" className="icon-sm" />Quick capture</Link>}
+      actions={<Link className="button button-primary" href="/mobile"><Icon name="plus" className="icon-sm" />Add</Link>}
     >
       {error ? <div className="form-error" role="alert" style={{ marginBottom: 18 }}>{error}</div> : null}
       <div className="workspace-grid">
@@ -288,24 +307,26 @@ function TransactionsWorkspace() {
                 <option value="expense">Expenses</option>
                 <option value="income">Income</option>
               </select>
-              <button
-                type="button"
-                className={`filter-chip${socialOnly ? " filter-chip-active" : ""}`}
-                onClick={() => { setSocialOnly((current) => !current); setPage(1); }}
-                aria-pressed={socialOnly}
-              >
-                <Icon name="users" className="icon-sm" />
-                Social
-              </button>
-              <button
-                type="button"
-                className={`filter-chip${datingOnly ? " filter-chip-active-dating" : ""}`}
-                onClick={() => { setDatingOnly((current) => !current); setPage(1); }}
-                aria-pressed={datingOnly}
-              >
-                <Icon name="spark" className="icon-sm" />
-                Dating
-              </button>
+              <div className="filter-chips-row">
+                <button
+                  type="button"
+                  className={`filter-chip${socialOnly ? " filter-chip-active" : ""}`}
+                  onClick={() => { setSocialOnly((current) => !current); setPage(1); }}
+                  aria-pressed={socialOnly}
+                >
+                  <Icon name="users" className="icon-sm" />
+                  Social
+                </button>
+                <button
+                  type="button"
+                  className={`filter-chip${datingOnly ? " filter-chip-active-dating" : ""}`}
+                  onClick={() => { setDatingOnly((current) => !current); setPage(1); }}
+                  aria-pressed={datingOnly}
+                >
+                  <Icon name="heart" className="icon-sm" />
+                  Dating
+                </button>
+              </div>
             </div>
           </div>
           {loading ? <div className="surface-body"><div className="loading-block" /></div> : transactions.length ? (
@@ -318,7 +339,7 @@ function TransactionsWorkspace() {
                       <td>
                         <strong>{transaction.merchant}</strong>
                         {transaction.isSocial ? <span className="social-pill" style={{ marginLeft: 7 }}><Icon name="users" className="icon-sm" /> Social</span> : null}
-                        {transaction.isDating ? <span className="dating-pill" style={{ marginLeft: 7 }}><Icon name="spark" className="icon-sm" /> Dating</span> : null}
+                        {transaction.isDating ? <span className="dating-pill" style={{ marginLeft: 7 }}><Icon name="heart" className="icon-sm" /> Dating</span> : null}
                       </td>
                       <td className="mono">{fullDate(transaction.date)}</td>
                       <td><span className="category-pill">{transaction.category?.name ?? "Uncategorized"}</span></td>

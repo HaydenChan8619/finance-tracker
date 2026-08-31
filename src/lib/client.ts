@@ -25,7 +25,14 @@ export async function apiFetch<T>(url: string, options?: RequestInit) {
 }
 
 export function formatMoney(cents: number, direction?: string) {
-  const sign = direction === "income" ? "+" : direction === "expense" ? "-" : "";
+  let sign = "";
+  if (direction === "income") {
+    sign = "+";
+  } else if (direction === "expense") {
+    sign = "-";
+  } else if (cents < 0) {
+    sign = "-";
+  }
   return `${sign}${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
     Math.abs(cents) / 100,
   )}`;

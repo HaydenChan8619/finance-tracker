@@ -92,9 +92,6 @@ export async function POST(request: Request) {
   try {
     const access = await requireAdminOrPermission(request, "CREATE_TRANSACTION");
     const input = transactionInputSchema.parse(await readJson(request));
-    if (access.kind === "device" && input.direction !== "expense") {
-      return jsonError("Authorized devices can only create expenses.", 403);
-    }
 
     if (input.idempotencyKey) {
       const existing = await prisma.transaction.findUnique({
@@ -123,12 +120,24 @@ export async function POST(request: Request) {
       });
     }
 
-    if (input.categoryId) {
-      const category = await prisma.category.findUnique({ where: { id: input.categoryId } });
-      if (!category) {
+    let finalCategoryId = input.categoryId ?? null;
+    let selectedCategory: { id: string; name: string } | null = null;
+
+    if (finalCategoryId) {
+      selectedCategory = await prisma.category.findUnique({ where: { id: finalCategoryId } });
+      if (!selectedCategory) {
         return jsonError("Selected category was not found.", 422);
       }
+    } else {
+      const misc = await prisma.category.findUnique({ where: { name: "Misc" } });
+      if (misc) {
+        finalCategoryId = misc.id;
+        selectedCategory = misc;
+      }
     }
+
+    const isIncome = selectedCategory?.name.toLowerCase() === "income" || input.direction === "income";
+    const direction = isIncome ? "income" : input.direction;
 
     const transaction = await prisma.transaction.create({
       data: {
@@ -136,11 +145,11 @@ export async function POST(request: Request) {
         merchant: input.merchant,
         normalizedMerchant: normalizeMerchant(input.merchant),
         amountCents: input.amountCents,
-        direction: input.direction,
+        direction,
         date: input.date ?? new Date(),
-        categoryId: input.categoryId ?? null,
-        isSocial: input.direction === "income" ? false : input.isSocial,
-        isDating: input.direction === "income" ? false : input.isDating,
+        categoryId: finalCategoryId,
+        isSocial: direction === "income" ? false : input.isSocial,
+        isDating: direction === "income" ? false : input.isDating,
         notes: input.notes ?? null,
         source: access.kind === "device" ? "mobile" : input.source,
         predictionSource: input.predictionSource ?? null,
