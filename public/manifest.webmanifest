@@ -1,0 +1,17 @@
+{
+  "name": "Finance Tracker",
+  "short_name": "Finance",
+  "description": "A private, self-hosted ledger for everyday money.",
+  "start_url": "/mobile",
+  "display": "standalone",
+  "background_color": "#eef4f0",
+  "theme_color": "#142c35",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sessions     Session[]
+  auditLogs    AuditLog[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Category {
+  id           String         @id @default(cuid())
+  name         String         @unique
+  color        String         @default("#2a6f68")
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  transactions Transaction[]
+  rules        CategoryRule[]
+  imports      ImportedTransaction[]
+}
+
+model CategoryRule {
+  id         String   @id @default(cuid())
+  pattern    String
+  categoryId String
+  priority   Int      @default(50)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([pattern, categoryId])
+  @@index([pattern])
+}
+
+model Transaction {
+  id                String    @id
+  merchant          String
+  normalizedMerchant String
+  amountCents       Int
+  direction         String    @default("expense")
+  date              DateTime
+  categoryId        String?
+  isSocial          Boolean   @default(false)
+  notes             String?
+  source            String    @default("manual")
+  predictionSource  String?
+  idempotencyKey    String?   @unique
+  importBatchId     String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  category          Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  importBatch       ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([categoryId])
+  @@index([normalizedMerchant])
+  @@index([direction])
+}
+
+model Device {
+  id          String    @id @default(cuid())
+  name        String
+  tokenHash   String    @unique
+  permissions String    @default("[\"CREATE_TRANSACTION\",\"READ_RECENT_TRANSACTIONS\"]")
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([revokedAt])
+}
+
+model EnrollmentToken {
+  id         String    @id @default(cuid())
+  codeHash   String    @unique
+  deviceName String?
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([expiresAt])
+}
+
+model ImportBatch {
+  id                   String                @id @default(cuid())
+  sourceFilename       String
+  sourceAccount        String?
+  statementPeriodStart DateTime?
+  statementPeriodEnd   DateTime?
+  parserVersion        String
+  status               String                @default("review")
+  totalRows            Int                   @default(0)
+  parsedRows           Int                   @default(0)
+  reviewRows           Int                   @default(0)
+  duplicateRows        Int                   @default(0)
+  createdAt             DateTime              @default(now())
+  committedAt          DateTime?
+  transactions         Transaction[]
+  importedTransactions ImportedTransaction[]
+
+  @@index([status])
+}
+
+model ImportedTransaction {
+  id                   String    @id @default(cuid())
+  importBatchId        String
+  date                 DateTime?
+  merchantRaw          String
+  amountRaw            String
+  transactionTypeRaw   String?
+  sourcePage           Int?
+  parsedConfidence     Int?
+  normalizedMerchant   String?
+  amountCents          Int?
+  direction            String?
+  categoryId           String?
+  status               String    @default("ready")
+  duplicateKind        String?
+  duplicateTransactionId String?
+  reviewNote           String?
+  committedTransactionId String?
+  createdAt            DateTime  @default(now())
+  importBatch          ImportBatch @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
+  category             Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([importBatchId])
+  @@index([status])
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String?
+  action       String
+  entityType   String
+  entityId     String?
+  details      String?
+  createdAt    DateTime @default(now())
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
