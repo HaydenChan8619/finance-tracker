@@ -129,6 +129,8 @@ function TransactionForm({
     }
   }
 
+  const miscCategory = categories.find((c) => c.name.toLowerCase() === "misc");
+
   return (
     <section className="surface" aria-labelledby="transaction-form-title">
       <div className="surface-header">
@@ -162,8 +164,7 @@ function TransactionForm({
             </div>
             <div className="field">
               <label htmlFor="transaction-category">Category</label>
-              <select id="transaction-category" className="select" value={values.categoryId} onChange={(event) => update("categoryId", event.target.value)}>
-                <option value="">Uncategorized</option>
+              <select id="transaction-category" className="select" value={values.categoryId || miscCategory?.id || ""} onChange={(event) => update("categoryId", event.target.value)}>
                 {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
               </select>
             </div>

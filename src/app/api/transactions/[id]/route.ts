@@ -13,10 +13,17 @@ export async function PATCH(request: Request, context: RouteContext) {
     const { id } = await context.params;
     const input = transactionInputSchema.partial().parse(await readJson(request));
 
-    if (input.categoryId) {
-      const category = await prisma.category.findUnique({ where: { id: input.categoryId } });
-      if (!category) {
-        return jsonError("Selected category was not found.", 422);
+    let finalCategoryId: string | null | undefined = undefined;
+    if (input.categoryId !== undefined) {
+      if (input.categoryId) {
+        const category = await prisma.category.findUnique({ where: { id: input.categoryId } });
+        if (!category) {
+          return jsonError("Selected category was not found.", 422);
+        }
+        finalCategoryId = category.id;
+      } else {
+        const misc = await prisma.category.findUnique({ where: { name: "Misc" } });
+        finalCategoryId = misc?.id ?? null;
       }
     }
 
@@ -25,7 +32,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       ...(input.amountCents !== undefined ? { amountCents: input.amountCents } : {}),
       ...(input.direction !== undefined ? { direction: input.direction, ...(input.direction === "income" ? { isSocial: false, isDating: false } : {}) } : {}),
       ...(input.date !== undefined ? { date: input.date } : {}),
-      ...(input.categoryId !== undefined ? { categoryId: input.categoryId } : {}),
+      ...(finalCategoryId !== undefined ? { categoryId: finalCategoryId } : {}),
       ...(input.isSocial !== undefined ? { isSocial: input.direction === "income" ? false : input.isSocial } : {}),
       ...(input.isDating !== undefined ? { isDating: input.direction === "income" ? false : input.isDating } : {}),
       ...(input.notes !== undefined ? { notes: input.notes } : {}),

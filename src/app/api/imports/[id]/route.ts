@@ -120,6 +120,12 @@ export async function PATCH(request: Request, context: RouteContext) {
       }
     }
 
+    const misc = await prisma.category.findUnique({ where: { name: "Misc" } });
+    let newCategoryId: string | null | undefined = undefined;
+    if (input.categoryId !== undefined) {
+      newCategoryId = category ? category.id : (misc?.id ?? null);
+    }
+
     const row = await prisma.importedTransaction.update({
       where: { id: existing.id },
       data: {
@@ -130,7 +136,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         direction: newDirection,
         date: newDate,
         status: newStatus,
-        categoryId: input.categoryId !== undefined ? input.categoryId : existing.categoryId,
+        categoryId: newCategoryId !== undefined ? newCategoryId : existing.categoryId,
         reviewNote: input.notes !== undefined ? input.notes : (newStatus === "ready" ? null : existing.reviewNote),
         duplicateKind,
       },

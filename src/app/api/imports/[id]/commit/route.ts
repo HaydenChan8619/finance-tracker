@@ -34,36 +34,52 @@ export async function POST(request: Request, context: RouteContext) {
       return jsonError("There are no ready rows to import.", 422);
     }
 
+    const miscCategory = await prisma.category.findUnique({ where: { name: "Misc" } });
+    const defaultCategoryId = miscCategory?.id ?? null;
+
     const committedAt = new Date();
-    const created = await prisma.$transaction(async (tx) => {
-      const transactions = [];
-      for (const row of batch.importedTransactions) {
-        const transaction = await tx.transaction.create({
-          data: {
-            id: randomUUID(),
-            merchant: row.merchantRaw,
-            normalizedMerchant: row.normalizedMerchant as string,
-            amountCents: row.amountCents as number,
-            direction: row.direction as string,
-            date: row.date as Date,
-            categoryId: row.categoryId,
-            source: "import",
-            importBatchId: batch.id,
-            idempotencyKey: `import:${batch.id}:${row.id}`,
+    const transactionData = batch.importedTransactions.map((row) => ({
+      rowId: row.id,
+      transaction: {
+        id: randomUUID(),
+        merchant: row.merchantRaw,
+        normalizedMerchant: row.normalizedMerchant as string,
+        amountCents: row.amountCents as number,
+        direction: row.direction as string,
+        date: row.date as Date,
+        categoryId: row.categoryId || defaultCategoryId,
+        notes: row.reviewNote,
+        source: "import",
+        importBatchId: batch.id,
+        idempotencyKey: `import:${batch.id}:${row.id}`,
+      },
+    }));
+
+    const created = await prisma.$transaction(
+      async (tx) => {
+        await tx.transaction.createMany({
+          data: transactionData.map((t) => t.transaction),
+        });
+
+        await tx.importedTransaction.updateMany({
+          where: {
+            id: { in: batch.importedTransactions.map((r) => r.id) },
           },
+          data: { status: "committed" },
         });
-        await tx.importedTransaction.update({
-          where: { id: row.id },
-          data: { status: "committed", committedTransactionId: transaction.id },
+
+        await tx.importBatch.update({
+          where: { id: batch.id },
+          data: { status: "committed", committedAt },
         });
-        transactions.push(transaction);
-      }
-      await tx.importBatch.update({
-        where: { id: batch.id },
-        data: { status: "committed", committedAt },
-      });
-      return transactions;
-    });
+
+        return transactionData;
+      },
+      {
+        timeout: 30000,
+        maxWait: 10000,
+      },
+    );
 
     await prisma.auditLog.create({
       data: {

@@ -123,6 +123,10 @@ export async function getAnalytics() {
   let totalIncome = 0;
   let totalExpenses = 0;
   let socialExpenses = 0;
+  let datingExpenses = 0;
+
+  const miscCategory = await prisma.category.findUnique({ where: { name: "Misc" } });
+  const miscId = miscCategory?.id ?? "misc";
 
   for (const transaction of transactions) {
     const mKey = monthKey(transaction.date);
@@ -142,13 +146,16 @@ export async function getAnalytics() {
         bucket.social += transaction.amountCents;
       }
     }
+    if (transaction.isDating) {
+      datingExpenses += transaction.amountCents;
+    }
     if (bucket) {
       bucket.expenses += transaction.amountCents;
     }
 
-    const categoryKey = transaction.category?.id ?? "uncategorized";
+    const categoryKey = transaction.category?.id ?? miscId;
     const categoryName = transaction.category?.name ?? "Misc";
-    const categoryColor = transaction.category?.color || CATEGORY_COLORS[categoryName] || "#64748b";
+    const categoryColor = transaction.category?.color || miscCategory?.color || CATEGORY_COLORS[categoryName] || "#64748b";
 
     const catMap = monthCategoryMap.get(mKey);
     if (catMap) {
@@ -208,6 +215,12 @@ export async function getAnalytics() {
       : [];
   }
 
+  const activeMonths = months.filter((m) => m.expenses > 0 || m.income > 0);
+  const activeExpenseMonths = months.filter((m) => m.expenses > 0);
+  const averageMonthlyExpense = activeExpenseMonths.length
+    ? Math.round(totalExpenses / activeExpenseMonths.length)
+    : 0;
+
   const latestMonth = months[months.length - 1];
   const previousMonth = months[months.length - 2];
   const monthOverMonth =
@@ -226,8 +239,12 @@ export async function getAnalytics() {
       totalExpenses,
       net: totalIncome - totalExpenses,
       socialExpenses,
+      datingExpenses,
       monthOverMonth,
       socialPercentage: totalExpenses ? Math.round((socialExpenses / totalExpenses) * 100) : 0,
+      datingPercentage: totalExpenses ? Math.round((datingExpenses / totalExpenses) * 100) : 0,
+      averageMonthlyExpense,
+      activeMonthsCount: activeMonths.length,
     },
     months,
     categoryBreakdown: [...categoryTotals.values()]

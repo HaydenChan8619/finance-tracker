@@ -30,6 +30,9 @@ export async function POST(request: Request, context: RouteContext) {
       return jsonError("Selected category was not found.", 422);
     }
 
+    const misc = await prisma.category.findUnique({ where: { name: "Misc" } });
+    const finalCategoryId = category ? category.id : (misc?.id ?? null);
+
     const date = input.date ?? new Date();
     const normalizedMerchant = normalizeMerchant(input.merchantRaw);
 
@@ -52,7 +55,7 @@ export async function POST(request: Request, context: RouteContext) {
         direction: input.direction,
         date,
         status: input.status,
-        categoryId: input.categoryId ?? null,
+        categoryId: finalCategoryId,
         reviewNote: input.notes ?? null,
         duplicateKind,
         parsedConfidence: 100,

@@ -96,7 +96,8 @@ function importRowData(
   categories: Array<{ id: string; name: string; color: string }>,
   rules: Array<{ pattern: string; categoryId: string; priority: number }>,
 ) {
-  let categoryId: string | null = null;
+  const misc = categories.find((c) => c.name.toLowerCase() === "misc");
+  let categoryId: string | null = misc?.id ?? null;
   if (row.normalizedMerchant) {
     const prediction = predictCategory(row.normalizedMerchant, categories, [], rules);
     if (prediction.categoryId) {

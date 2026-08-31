@@ -714,10 +714,9 @@ function ImportWorkspace() {
                         </label>
                         <select
                           className="select import-input"
-                          value={newCategoryId}
+                          value={newCategoryId || categories.find((c) => c.name.toLowerCase() === "misc")?.id || ""}
                           onChange={(e) => setNewCategoryId(e.target.value)}
                         >
-                          <option value="">Uncategorized</option>
                           {categories.map((cat) => (
                             <option value={cat.id} key={cat.id}>
                               {cat.name}
@@ -931,13 +930,12 @@ function ImportWorkspace() {
                           <select
                             id={`cat-${row.id}`}
                             className="select import-input"
-                            value={row.categoryId ?? ""}
+                            value={row.categoryId || categories.find((c) => c.name.toLowerCase() === "misc")?.id || ""}
                             onChange={(event) =>
-                              void updateRow(row, { categoryId: event.target.value || null })
+                              void updateRow(row, { categoryId: event.target.value || categories.find((c) => c.name.toLowerCase() === "misc")?.id || null })
                             }
                             disabled={isCommitted || isBusy}
                           >
-                            <option value="">Uncategorized</option>
                             {categories.map((category) => (
                               <option value={category.id} key={category.id}>
                                 {category.name}

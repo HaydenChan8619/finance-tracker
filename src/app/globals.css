@@ -459,64 +459,315 @@ button:disabled {
   color: var(--signal);
 }
 
+.chart-header-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.badge-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--surface-muted);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.badge-button:hover {
+  background: #dfece6;
+  border-color: var(--teal);
+}
+
+.badge-button strong {
+  color: var(--teal-deep);
+}
+
+.summary-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: var(--surface-muted);
+  border-radius: 999px;
+  font-size: 11px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  color: var(--ink-soft);
+}
+
+.summary-pill strong {
+  color: var(--ink);
+}
+
+.icon-xs {
+  width: 12px;
+  height: 12px;
+}
+
+/* Active Month Live Inspector Popover Card */
+.chart-inspector-card {
+  background: #f8faf9;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 8px rgba(20, 44, 53, 0.03);
+}
+
+.inspector-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.inspector-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.inspector-month {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.inspector-key {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.inspector-stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.inspector-stat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.stat-name {
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+
+.stat-val.expense-val {
+  color: var(--signal);
+  font-weight: 600;
+}
+
+.stat-val.income-val {
+  color: var(--teal);
+  font-weight: 600;
+}
+
+.inspector-categories {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+
+.inspector-cat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+.cat-color-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.cat-name {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.cat-amt {
+  color: var(--ink-soft);
+  margin-left: 2px;
+}
+
+.inspector-more-pill {
+  font-size: 11px;
+  color: var(--ink-soft);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  padding: 3px 6px;
+}
+
+/* Bar Chart Canvas with Scale Lines */
+.chart-canvas-container {
+  position: relative;
+  padding-top: 14px;
+  margin-bottom: 8px;
+}
+
+.chart-grid-scale {
+  position: absolute;
+  top: 14px;
+  left: 0;
+  right: 0;
+  bottom: 50px;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.grid-line {
+  width: 100%;
+  border-bottom: 1px dashed var(--line);
+  position: relative;
+  opacity: 0.65;
+}
+
+.grid-line span {
+  position: absolute;
+  right: 0;
+  top: -8px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 9px;
+  color: var(--ink-soft);
+  padding: 0 4px;
+  background: var(--surface);
+}
+
+.grid-line.base-line {
+  border-bottom-style: solid;
+  border-bottom-color: var(--line-strong);
+  opacity: 0.85;
+}
+
 .trend-chart {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   align-items: end;
-  gap: 8px;
-  min-height: 220px;
-  padding: 8px 0 0;
+  gap: 6px;
+  min-height: 230px;
+  position: relative;
+  z-index: 1;
 }
 
 .chart-column {
-  display: grid;
-  grid-template-rows: 1fr auto;
-  min-width: 0;
-  height: 205px;
-  gap: 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 230px;
+  justify-content: flex-end;
+  padding: 4px 2px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+  user-select: none;
+  border: 1px solid transparent;
+}
+
+.chart-column:hover {
+  background-color: rgba(40, 125, 114, 0.06);
+  border-color: rgba(40, 125, 114, 0.15);
+  transform: translateY(-2px);
+}
+
+.chart-column.is-active {
+  background-color: rgba(40, 125, 114, 0.12);
+  border-color: rgba(40, 125, 114, 0.35);
 }
 
 .chart-bars {
   display: flex;
-  align-items: end;
+  align-items: flex-end;
   justify-content: center;
   gap: 3px;
-  min-height: 0;
-  border-bottom: 1px solid var(--line);
+  height: 160px;
+  width: 100%;
+  margin-bottom: 6px;
 }
 
 .bar {
   display: block;
-  width: min(15px, 46%);
   min-height: 2px;
-  border-radius: 3px 3px 0 0;
-}
-
-.bar-expense {
-  background: var(--signal);
 }
 
 .bar-income {
-  background: var(--teal);
+  width: min(13px, 44%);
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(180deg, #32998c 0%, #287d72 100%);
+  transition: height 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s ease;
 }
 
 .bar-stacked-expense {
   display: flex;
   flex-direction: column-reverse;
-  width: min(15px, 46%);
+  width: min(13px, 44%);
   min-height: 2px;
-  border-radius: 3px 3px 0 0;
+  border-radius: 4px 4px 0 0;
   overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: height 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .bar-segment {
   display: block;
   width: 100%;
-  transition: opacity 0.15s ease;
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  transition: opacity 0.15s ease, filter 0.15s ease;
 }
 
 .bar-segment:hover {
-  opacity: 0.85;
+  filter: brightness(1.15);
+}
+
+.chart-spend-pill {
+  display: block;
+  width: 100%;
+  text-align: center;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface-muted);
+  padding: 2px 0;
+  border-radius: 4px;
+  line-height: 1.2;
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.chart-column:hover .chart-spend-pill,
+.chart-column.is-active .chart-spend-pill {
+  background-color: var(--ink);
+  color: #ffffff;
 }
 
 .chart-label {
@@ -524,9 +775,12 @@ button:disabled {
   color: var(--ink-soft);
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 10px;
+  font-weight: 500;
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .chart-legend {
@@ -537,14 +791,29 @@ button:disabled {
   margin-top: 15px;
   color: var(--ink-soft);
   font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 10px;
+  font-size: 11px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+  cursor: default;
+}
+
+.legend-item.is-highlighted {
+  background-color: var(--surface-muted);
+  color: var(--ink);
+  font-weight: 600;
 }
 
 .legend-dot {
   display: inline-block;
   width: 8px;
   height: 8px;
-  margin-right: 5px;
+  margin-right: 6px;
   border-radius: 2px;
   vertical-align: middle;
 }
@@ -555,6 +824,457 @@ button:disabled {
 
 .legend-dot-income {
   background: var(--teal);
+}
+
+/* =========================================================================
+   Spend Distribution & Intelligence Section Styles
+   ========================================================================= */
+
+.distribution-surface {
+  margin-top: 0;
+}
+
+.tab-segmented-control {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  background: var(--surface-muted);
+  border-radius: 8px;
+  gap: 2px;
+}
+
+.tab-segment-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.tab-segment-btn:hover {
+  color: var(--ink);
+}
+
+.tab-segment-btn.active {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(20, 44, 53, 0.08);
+}
+
+/* Donut & Pie Chart Layout */
+.donut-layout-grid {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+  min-height: 250px;
+}
+
+.donut-chart-wrapper {
+  position: relative;
+  width: 240px;
+  height: 240px;
+  margin: 0 auto;
+  flex-shrink: 0;
+}
+
+.donut-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.donut-path {
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s ease;
+  transform-origin: 0px 0px;
+}
+
+.donut-path:hover,
+.donut-path.is-hovered {
+  opacity: 0.95;
+}
+
+.donut-center-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  text-align: center;
+  padding: 24px;
+}
+
+.donut-center-tag {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.donut-center-amt {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.04em;
+  margin: 2px 0;
+  font-family: "IBM Plex Sans", ui-sans-serif, sans-serif;
+}
+
+.donut-center-sub {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.donut-details-list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.details-header-row {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 10px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  letter-spacing: 0.05em;
+}
+
+.category-items-scroll {
+  display: grid;
+  gap: 8px;
+  max-height: 230px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.category-item-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+}
+
+.category-item-card:hover,
+.category-item-card.is-hovered {
+  background-color: var(--surface-muted);
+  border-color: var(--line);
+}
+
+.item-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.cat-icon-badge {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.item-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-track {
+  height: 5px;
+  background: var(--surface-muted);
+  border-radius: 999px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.item-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.3s ease;
+}
+
+.item-values {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.item-amount {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.item-percent {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--ink-soft);
+}
+
+/* Lifestyle Dimensions Split */
+.lifestyle-layout-grid {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+}
+
+.lifestyle-cards-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lifestyle-info-card {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  cursor: pointer;
+}
+
+.lifestyle-info-card:hover,
+.lifestyle-info-card.is-hovered {
+  border-color: var(--teal);
+  box-shadow: 0 4px 14px rgba(20, 44, 53, 0.06);
+  transform: translateY(-1px);
+}
+
+.card-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.card-badge {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.card-heading {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--ink);
+}
+
+.card-desc {
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin: 2px 0 0;
+}
+
+.card-amount-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.card-amount {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.card-pill {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.lifestyle-track {
+  height: 5px;
+  background: var(--surface-muted);
+  border-radius: 999px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.lifestyle-fill {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.lifestyle-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--surface-muted);
+  border-radius: 8px;
+  font-size: 11px;
+  color: var(--ink-soft);
+  line-height: 1.45;
+  margin-top: 4px;
+}
+
+.lifestyle-callout strong {
+  color: var(--ink);
+}
+
+/* Monthly Breakdown Table */
+.monthly-table-wrapper {
+  overflow-x: auto;
+  max-height: 320px;
+}
+
+.monthly-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.monthly-data-table th {
+  padding: 10px 12px;
+  text-align: left;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.monthly-data-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.monthly-data-table tr {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.monthly-data-table tr:hover {
+  background-color: var(--surface-muted);
+}
+
+.monthly-data-table tr.table-row-selected {
+  background-color: rgba(40, 125, 114, 0.08);
+  font-weight: 500;
+}
+
+.monthly-data-table tr.table-row-empty {
+  opacity: 0.55;
+}
+
+.month-td-cell {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.table-amt-spend {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-weight: 600;
+  color: var(--signal);
+}
+
+.table-amt-income {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-weight: 600;
+  color: var(--teal);
+}
+
+.table-amt-net.positive {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  color: var(--teal);
+  font-weight: 500;
+}
+
+.table-amt-net.negative {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  color: var(--signal);
+  font-weight: 500;
+}
+
+.table-amt-social {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  color: var(--ink-soft);
+}
+
+.table-mom.positive {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  color: var(--teal);
+  font-weight: 500;
+}
+
+.table-mom.negative {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  color: var(--signal);
+  font-weight: 500;
 }
 
 .ledger-list {
@@ -2449,24 +3169,46 @@ button:disabled {
     margin-top: 4px;
   }
 
+  .chart-header-badges {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .chart-canvas-container {
+    padding-top: 10px;
+  }
+
+  .chart-grid-scale {
+    bottom: 38px;
+  }
+
   .trend-chart {
-    min-height: 170px;
+    min-height: 180px;
     gap: 3px;
     padding-top: 4px;
   }
 
   .chart-column {
-    height: 160px;
-    gap: 4px;
+    height: 180px;
+    gap: 2px;
+    padding: 2px 1px;
   }
 
   .chart-bars {
+    height: 120px;
     gap: 1.5px;
+    margin-bottom: 3px;
   }
 
-  .bar,
+  .bar-income,
   .bar-stacked-expense {
-    width: min(8px, 46%);
+    width: min(9px, 46%);
+  }
+
+  .chart-spend-pill {
+    font-size: 8px;
+    padding: 1px 0;
+    margin-bottom: 2px;
   }
 
   .chart-label {
@@ -2475,9 +3217,66 @@ button:disabled {
   }
 
   .chart-legend {
-    gap: 10px;
+    gap: 6px 10px;
     margin-top: 10px;
-    font-size: 9px;
+    font-size: 9.5px;
+  }
+
+  .chart-inspector-card {
+    padding: 10px 12px;
+  }
+
+  .inspector-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .inspector-stats {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 11px;
+  }
+
+  .tab-segmented-control {
+    width: 100%;
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .tab-segment-btn {
+    flex: 1 0 auto;
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+
+  .donut-layout-grid,
+  .lifestyle-layout-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .donut-chart-wrapper {
+    width: 210px;
+    height: 210px;
+  }
+
+  .donut-center-amt {
+    font-size: 17px;
+  }
+
+  .category-items-scroll {
+    max-height: 260px;
+  }
+
+  .monthly-data-table {
+    font-size: 11px;
+  }
+
+  .monthly-data-table th,
+  .monthly-data-table td {
+    padding: 8px 8px;
   }
 
   .surface-header {

@@ -2,22 +2,24 @@ import {
   ArrowUpRight,
   BookOpen,
   Bus,
+  Calendar,
   Car,
-  LineChart,
-  Check,
-  ChevronLeft,
-  ChevronRight,
+  Clapperboard,
+  DollarSign,
   Download,
   Edit2,
   ExternalLink,
   FileText,
-  Clapperboard,
   Heart,
   Home,
   Image,
+  Info,
+  Layers,
+  LineChart,
   Lock,
   LogOut,
   Menu,
+  PieChart,
   Plus,
   RefreshCw,
   Settings,
@@ -28,10 +30,15 @@ import {
   Tag,
   Ticket,
   Trash2,
+  TrendingDown,
+  TrendingUp,
   Upload,
   User,
   Users,
   Utensils,
+  Check,
+  ChevronLeft,
+  ChevronRight,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -40,11 +47,13 @@ export type IconName =
   | "arrow-up-right"
   | "book"
   | "bus"
+  | "calendar"
   | "car"
   | "chart"
   | "check"
   | "chevron-left"
   | "chevron-right"
+  | "dollar"
   | "download"
   | "edit"
   | "external"
@@ -53,9 +62,12 @@ export type IconName =
   | "heart"
   | "home"
   | "image"
+  | "info"
+  | "layers"
   | "lock"
   | "logout"
   | "menu"
+  | "pie-chart"
   | "plus"
   | "refresh"
   | "rose"
@@ -67,6 +79,8 @@ export type IconName =
   | "tag"
   | "ticket"
   | "trash"
+  | "trending-down"
+  | "trending-up"
   | "upload"
   | "user"
   | "users"
@@ -77,11 +91,13 @@ const iconMap: Record<IconName, LucideIcon> = {
   "arrow-up-right": ArrowUpRight,
   book: BookOpen,
   bus: Bus,
+  calendar: Calendar,
   car: Car,
   chart: LineChart,
   check: Check,
   "chevron-left": ChevronLeft,
   "chevron-right": ChevronRight,
+  dollar: DollarSign,
   download: Download,
   edit: Edit2,
   external: ExternalLink,
@@ -90,9 +106,12 @@ const iconMap: Record<IconName, LucideIcon> = {
   heart: Heart,
   home: Home,
   image: Image,
+  info: Info,
+  layers: Layers,
   lock: Lock,
   logout: LogOut,
   menu: Menu,
+  "pie-chart": PieChart,
   plus: Plus,
   refresh: RefreshCw,
   rose: Heart,
@@ -104,6 +123,8 @@ const iconMap: Record<IconName, LucideIcon> = {
   tag: Tag,
   ticket: Ticket,
   trash: Trash2,
+  "trending-down": TrendingDown,
+  "trending-up": TrendingUp,
   upload: Upload,
   user: User,
   users: Users,
