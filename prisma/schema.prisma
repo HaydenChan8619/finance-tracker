@@ -61,6 +61,7 @@ model Transaction {
   date              DateTime
   categoryId        String?
   isSocial          Boolean   @default(false)
+  isDating          Boolean   @default(false)
   notes             String?
   source            String    @default("manual")
   predictionSource  String?

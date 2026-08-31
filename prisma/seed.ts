@@ -1,19 +1,17 @@
+import dotenv from "dotenv";
+dotenv.config({ path: ".env.local" });
+dotenv.config();
 import bcrypt from "bcryptjs";
 import { prisma } from "../src/lib/prisma";
 
 const categories = [
-  { name: "Groceries", color: "#2d8a78" },
-  { name: "Dining", color: "#db744d" },
-  { name: "Coffee", color: "#b8894b" },
-  { name: "Transportation", color: "#4d7db8" },
+  { name: "Food", color: "#2d8a78" },
   { name: "Entertainment", color: "#8a62b7" },
-  { name: "Housing", color: "#53636b" },
-  { name: "Utilities", color: "#cf8d31" },
-  { name: "Subscriptions", color: "#3d8f9d" },
-  { name: "Health", color: "#4d9b76" },
-  { name: "Shopping", color: "#bc5a72" },
-  { name: "Income", color: "#2d8a78" },
-  { name: "Other", color: "#87938f" },
+  { name: "Clothing", color: "#bc5a72" },
+  { name: "Personal Care", color: "#3d8f9d" },
+  { name: "Driving", color: "#4d7db8" },
+  { name: "Misc", color: "#87938f" },
+  { name: "Income", color: "#2a6f68" },
 ];
 
 for (const category of categories) {

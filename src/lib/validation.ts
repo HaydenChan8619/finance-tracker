@@ -10,6 +10,7 @@ export const transactionInputSchema = z.object({
   date: z.coerce.date().optional(),
   categoryId: z.string().min(1).max(80).nullable().optional(),
   isSocial: z.boolean().default(false),
+  isDating: z.boolean().default(false),
   notes: z.string().trim().max(500).nullable().optional(),
   source: z.enum(["manual", "mobile", "import"]).default("manual"),
   predictionSource: z.string().trim().max(60).nullable().optional(),

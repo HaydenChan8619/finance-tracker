@@ -5,6 +5,7 @@ export function serializeTransaction(transaction: {
   direction: string;
   date: Date;
   isSocial: boolean;
+  isDating: boolean;
   notes: string | null;
   source: string;
   predictionSource: string | null;
@@ -21,6 +22,7 @@ export function serializeTransaction(transaction: {
     date: transaction.date.toISOString(),
     category: transaction.category,
     isSocial: transaction.isSocial,
+    isDating: transaction.isDating,
     notes: transaction.notes,
     source: transaction.source,
     predictionSource: transaction.predictionSource,

@@ -17,6 +17,7 @@ type Transaction = {
   date: string;
   category: Category | null;
   isSocial: boolean;
+  isDating: boolean;
   notes: string | null;
   source: string;
   predictionSource: string | null;
@@ -29,6 +30,7 @@ type EditorValues = {
   date: string;
   categoryId: string;
   isSocial: boolean;
+  isDating: boolean;
   notes: string;
 };
 
@@ -43,9 +45,10 @@ function toEditor(transaction?: Transaction): EditorValues {
         date: transaction.date.slice(0, 10),
         categoryId: transaction.category?.id ?? "",
         isSocial: transaction.isSocial,
+        isDating: transaction.isDating,
         notes: transaction.notes ?? "",
       }
-    : { merchant: "", amount: "", direction: "expense", date: today(), categoryId: "", isSocial: false, notes: "" };
+    : { merchant: "", amount: "", direction: "expense", date: today(), categoryId: "", isSocial: false, isDating: false, notes: "" };
 }
 
 function TransactionForm({
@@ -89,6 +92,7 @@ function TransactionForm({
         date: new Date(`${values.date}T12:00:00`).toISOString(),
         categoryId: values.categoryId || null,
         isSocial: values.direction === "expense" && values.isSocial,
+        isDating: values.direction === "expense" && values.isDating,
         notes: values.notes || null,
         source: "manual",
       };
@@ -141,7 +145,7 @@ function TransactionForm({
               <label htmlFor="transaction-category">Category</label>
               <select id="transaction-category" className="select" value={values.categoryId} onChange={(event) => update("categoryId", event.target.value)}>
                 <option value="">Uncategorized</option>
-                {categories.map((category) => <option value={category.id} key={category.id}>{category.name}</option>)}
+                {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
               </select>
             </div>
             <div className="field full">
@@ -150,11 +154,18 @@ function TransactionForm({
             </div>
           </div>
           {values.direction === "expense" ? (
-            <label className={`social-toggle${values.isSocial ? " social-toggle-active" : ""}`} style={{ marginTop: 15 }}>
-              <span className="toggle-copy"><strong>Mark as social</strong><span>Keep the social lens independent of category.</span></span>
-              <input className="sr-only" type="checkbox" checked={values.isSocial} onChange={(event) => update("isSocial", event.target.checked)} />
-              <span className="toggle-switch" aria-hidden="true" />
-            </label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 15 }}>
+              <label className={`social-toggle${values.isSocial ? " social-toggle-active" : ""}`}>
+                <span className="toggle-copy"><strong>Social</strong><span>Social lens</span></span>
+                <input className="sr-only" type="checkbox" checked={values.isSocial} onChange={(event) => update("isSocial", event.target.checked)} />
+                <span className="toggle-switch" aria-hidden="true" />
+              </label>
+              <label className={`social-toggle${values.isDating ? " dating-toggle-active" : ""}`}>
+                <span className="toggle-copy"><strong>Dating</strong><span>Dating lens</span></span>
+                <input className="sr-only" type="checkbox" checked={values.isDating} onChange={(event) => update("isDating", event.target.checked)} />
+                <span className="toggle-switch" aria-hidden="true" />
+              </label>
+            </div>
           ) : null}
           {error ? <div className="form-error" role="alert" style={{ marginTop: 14 }}>{error}</div> : null}
           <div className="form-actions">
@@ -175,7 +186,9 @@ function TransactionsWorkspace() {
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [query, setQuery] = useState("");
   const [direction, setDirection] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [socialOnly, setSocialOnly] = useState(false);
+  const [datingOnly, setDatingOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [pageCount, setPageCount] = useState(1);
   const [total, setTotal] = useState(0);
@@ -196,7 +209,9 @@ function TransactionsWorkspace() {
       const params = new URLSearchParams({ page: String(page), pageSize: "25" });
       if (query) params.set("q", query);
       if (direction) params.set("direction", direction);
+      if (categoryId) params.set("categoryId", categoryId);
       if (socialOnly) params.set("social", "true");
+      if (datingOnly) params.set("dating", "true");
       const result = await apiFetch<{ transactions: Transaction[]; pagination: { pageCount: number; total: number } }>(`/api/transactions?${params}`);
       setTransactions(result.transactions);
       setPageCount(result.pagination.pageCount);
@@ -206,15 +221,24 @@ function TransactionsWorkspace() {
     } finally {
       setLoading(false);
     }
-  }, [direction, page, query, socialOnly]);
+  }, [categoryId, datingOnly, direction, page, query, socialOnly]);
 
   useEffect(() => {
     void loadCategories();
   }, [loadCategories]);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("social") === "true") {
-      setSocialOnly(true);
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get("social") === "true") {
+        setSocialOnly(true);
+      }
+      if (searchParams.get("dating") === "true") {
+        setDatingOnly(true);
+      }
+      if (searchParams.get("categoryId")) {
+        setCategoryId(searchParams.get("categoryId")!);
+      }
     }
   }, []);
 
@@ -251,19 +275,38 @@ function TransactionsWorkspace() {
           </div>
           <div className="table-toolbar">
             <div className="toolbar-filters">
-              <label className="sr-only" htmlFor="transaction-search">Search merchant</label>
-              <input id="transaction-search" className="input compact-input" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Search merchant" />
+              <label className="sr-only" htmlFor="transaction-search">Search</label>
+              <input id="transaction-search" className="input compact-input" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Search merchant, note, social, dating" />
+              <label className="sr-only" htmlFor="category-filter">Filter category</label>
+              <select id="category-filter" className="select" value={categoryId} onChange={(event) => { setCategoryId(event.target.value); setPage(1); }}>
+                <option value="">All categories</option>
+                {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+              </select>
               <label className="sr-only" htmlFor="direction-filter">Filter direction</label>
               <select id="direction-filter" className="select" value={direction} onChange={(event) => { setDirection(event.target.value); setPage(1); }}>
                 <option value="">All flows</option>
                 <option value="expense">Expenses</option>
                 <option value="income">Income</option>
               </select>
+              <button
+                type="button"
+                className={`filter-chip${socialOnly ? " filter-chip-active" : ""}`}
+                onClick={() => { setSocialOnly((current) => !current); setPage(1); }}
+                aria-pressed={socialOnly}
+              >
+                <Icon name="users" className="icon-sm" />
+                Social
+              </button>
+              <button
+                type="button"
+                className={`filter-chip${datingOnly ? " filter-chip-active-dating" : ""}`}
+                onClick={() => { setDatingOnly((current) => !current); setPage(1); }}
+                aria-pressed={datingOnly}
+              >
+                <Icon name="spark" className="icon-sm" />
+                Dating
+              </button>
             </div>
-            <label className="category-pill" style={{ cursor: "pointer" }}>
-              <input type="checkbox" checked={socialOnly} onChange={(event) => { setSocialOnly(event.target.checked); setPage(1); }} />
-              Social only
-            </label>
           </div>
           {loading ? <div className="surface-body"><div className="loading-block" /></div> : transactions.length ? (
             <div className="table-wrap">
@@ -272,7 +315,11 @@ function TransactionsWorkspace() {
                 <tbody>
                   {transactions.map((transaction) => (
                     <tr key={transaction.id}>
-                      <td><strong>{transaction.merchant}</strong>{transaction.isSocial ? <span className="social-pill" style={{ marginLeft: 7 }}><Icon name="users" className="icon-sm" /> Social</span> : null}</td>
+                      <td>
+                        <strong>{transaction.merchant}</strong>
+                        {transaction.isSocial ? <span className="social-pill" style={{ marginLeft: 7 }}><Icon name="users" className="icon-sm" /> Social</span> : null}
+                        {transaction.isDating ? <span className="dating-pill" style={{ marginLeft: 7 }}><Icon name="spark" className="icon-sm" /> Dating</span> : null}
+                      </td>
                       <td className="mono">{fullDate(transaction.date)}</td>
                       <td><span className="category-pill">{transaction.category?.name ?? "Uncategorized"}</span></td>
                       <td className={`mono${transaction.direction === "income" ? " metric-detail positive" : " metric-detail negative"}`}>{formatMoney(transaction.amountCents, transaction.direction)}</td>

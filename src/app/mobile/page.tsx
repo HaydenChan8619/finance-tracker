@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { apiFetch, ClientApiError, formatMoney, shortDate } from "@/lib/client";
+import { apiFetch, ClientApiError } from "@/lib/client";
 import { parseAmountToCents } from "@/lib/validation";
-import AppShell from "@/components/app-shell";
 import { Icon } from "@/components/icon";
 
 type Category = { id: string; name: string; color: string };
@@ -13,15 +12,6 @@ type Prediction = {
   categoryName: string | null;
   source: "historical" | "keyword" | "user-rule" | "none";
   reason: string;
-};
-type RecentTransaction = {
-  id: string;
-  merchant: string;
-  amountCents: number;
-  direction: string;
-  date: string;
-  category: Category | null;
-  isSocial: boolean;
 };
 type PendingTransaction = {
   idempotencyKey: string;
@@ -64,14 +54,13 @@ function writePending(items: PendingTransaction[]) {
 
 export default function MobilePage() {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [recent, setRecent] = useState<RecentTransaction[]>([]);
   const [merchant, setMerchant] = useState("");
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [isSocial, setIsSocial] = useState(false);
-  const [pending, setPending] = useState<PendingTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isDating, setIsDating] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
   const [saving, setSaving] = useState(false);
   const [online, setOnline] = useState(true);
   const [authorized, setAuthorized] = useState(true);
@@ -79,41 +68,29 @@ export default function MobilePage() {
   const [message, setMessage] = useState("");
   const predictionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const categoryTouched = useRef(false);
+  const merchantInputRef = useRef<HTMLInputElement | null>(null);
 
-  const loadRecent = useCallback(async () => {
+  const loadCategories = useCallback(async () => {
     try {
-      const [categoryData, recentData] = await Promise.all([
-        apiFetch<Category[]>("/api/categories"),
-        apiFetch<RecentTransaction[]>("/api/mobile/recent"),
-      ]);
+      const categoryData = await apiFetch<Category[]>("/api/categories");
       setCategories(categoryData);
-      setRecent(recentData);
-      const cache = readCategoryCache();
-      for (const transaction of recentData) {
-        if (transaction.category) {
-          cache[normalizeClientMerchant(transaction.merchant)] = {
-            categoryId: transaction.category.id,
-            categoryName: transaction.category.name,
-          };
-        }
-      }
-      writeCategoryCache(cache);
       setAuthorized(true);
     } catch (requestError) {
       if (requestError instanceof ClientApiError && (requestError.status === 401 || requestError.status === 403)) {
         setAuthorized(false);
-        setError("This capture surface needs an enrolled device or an admin session.");
+        setError("Authorization required. Generate an enrollment code in Settings.");
       } else {
-        setError(requestError instanceof Error ? requestError.message : "Unable to load recent transactions.");
+        setError(requestError instanceof Error ? requestError.message : "Unable to load categories.");
       }
-    } finally {
-      setLoading(false);
     }
   }, []);
 
   const flushPending = useCallback(async () => {
     const current = readPending();
-    if (!current.length || !navigator.onLine) return;
+    if (!current.length || !navigator.onLine) {
+      setPendingCount(current.length);
+      return;
+    }
     const remaining: PendingTransaction[] = [];
     for (const item of current) {
       try {
@@ -123,17 +100,16 @@ export default function MobilePage() {
       }
     }
     writePending(remaining);
-    setPending(remaining);
+    setPendingCount(remaining.length);
     if (remaining.length !== current.length) {
-      setMessage(`${current.length - remaining.length} pending transaction${current.length - remaining.length === 1 ? "" : "s"} synced.`);
-      void loadRecent();
+      setMessage(`${current.length - remaining.length} offline entry synced.`);
     }
-  }, [loadRecent]);
+  }, []);
 
   useEffect(() => {
-    setPending(readPending());
+    setPendingCount(readPending().length);
     setOnline(navigator.onLine);
-    void loadRecent();
+    void loadCategories();
     void flushPending();
     const becameOnline = () => {
       setOnline(true);
@@ -146,7 +122,7 @@ export default function MobilePage() {
       window.removeEventListener("online", becameOnline);
       window.removeEventListener("offline", becameOffline);
     };
-  }, [flushPending, loadRecent]);
+  }, [flushPending, loadCategories]);
 
   useEffect(() => {
     if (predictionTimer.current) clearTimeout(predictionTimer.current);
@@ -163,7 +139,7 @@ export default function MobilePage() {
         categoryId: cached.categoryId,
         categoryName: cached.categoryName,
         source: "historical",
-        reason: "Matched your on-device category cache.",
+        reason: "Matched category cache",
       });
       setCategoryId(cached.categoryId);
     }
@@ -171,8 +147,8 @@ export default function MobilePage() {
       void apiFetch<{ prediction: Prediction }>(`/api/predictions?merchant=${encodeURIComponent(merchant)}`)
         .then((data) => {
           setPrediction(data.prediction);
-          if (!categoryTouched.current) {
-            setCategoryId(data.prediction.categoryId || "");
+          if (!categoryTouched.current && data.prediction.categoryId) {
+            setCategoryId(data.prediction.categoryId);
           }
         })
         .catch(() => undefined);
@@ -185,7 +161,7 @@ export default function MobilePage() {
   function queueForLater(payload: Record<string, unknown>, idempotencyKey: string) {
     const next = [...readPending(), { idempotencyKey, payload, createdAt: new Date().toISOString() }];
     writePending(next);
-    setPending(next);
+    setPendingCount(next.length);
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -194,18 +170,19 @@ export default function MobilePage() {
     setMessage("");
     const amountCents = parseAmountToCents(amount);
     if (!amountCents) {
-      setError("Enter a valid positive amount, such as 7.42.");
+      setError("Enter a valid amount (e.g. 12.50).");
       return;
     }
     const selectedCategory = categories.find((category) => category.id === categoryId);
     const idempotencyKey = crypto.randomUUID();
     const payload = {
-      merchant,
+      merchant: merchant.trim(),
       amountCents,
       direction: "expense",
       date: new Date().toISOString(),
       categoryId: selectedCategory?.id ?? null,
       isSocial,
+      isDating,
       source: "mobile",
       predictionSource: prediction?.source ?? null,
       idempotencyKey,
@@ -217,103 +194,173 @@ export default function MobilePage() {
       if (prediction && selectedCategory && prediction.categoryId !== selectedCategory.id) {
         void apiFetch("/api/predictions", {
           method: "POST",
-          body: JSON.stringify({ merchant, categoryId: selectedCategory.id }),
+          body: JSON.stringify({ merchant: merchant.trim(), categoryId: selectedCategory.id }),
         }).catch(() => undefined);
+      }
+      if (selectedCategory) {
+        const cache = readCategoryCache();
+        cache[normalizeClientMerchant(merchant)] = { categoryId: selectedCategory.id, categoryName: selectedCategory.name };
+        writeCategoryCache(cache);
       }
       setMerchant("");
       setAmount("");
       setCategoryId("");
       setPrediction(null);
       setIsSocial(false);
-      if (selectedCategory) {
-        const cache = readCategoryCache();
-        cache[normalizeClientMerchant(merchant)] = { categoryId: selectedCategory.id, categoryName: selectedCategory.name };
-        writeCategoryCache(cache);
-      }
-      setMessage("Saved to your private ledger.");
-      await loadRecent();
+      setIsDating(false);
+      setMessage("Saved!");
+      setTimeout(() => setMessage(""), 3000);
+      merchantInputRef.current?.focus();
     } catch (requestError) {
       if (!(requestError instanceof ClientApiError)) {
-        await queueForLater(payload, idempotencyKey);
+        queueForLater(payload, idempotencyKey);
         setMerchant("");
         setAmount("");
         setCategoryId("");
         setPrediction(null);
         setIsSocial(false);
-        setMessage("Saved on this phone. It will sync when the connection returns.");
+        setIsDating(false);
+        setMessage("Saved offline. Will sync automatically.");
+        setTimeout(() => setMessage(""), 4000);
       } else {
-        setError(requestError instanceof Error ? requestError.message : "Unable to save this transaction.");
+        setError(requestError instanceof Error ? requestError.message : "Unable to save transaction.");
       }
     } finally {
       setSaving(false);
     }
   }
 
-  return (
-    <AppShell
-      title="Quick capture"
-      description="A few seconds now keeps the full picture honest later."
-      actions={<Link className="button button-secondary" href="/dashboard"><Icon name="chart" className="icon-sm" />View dashboard</Link>}
-    >
-      {!authorized ? (
-        <div className="form-notice" role="status" style={{ marginBottom: 18 }}>
-          <strong>Device authorization required.</strong> Generate an enrollment code from the admin Settings page, then open that link on this phone. <Link href="/login">Admin sign in</Link>
-        </div>
-      ) : null}
-      {!online ? <div className="form-notice" role="status" style={{ marginBottom: 18 }}>Offline — new entries will wait on this phone and retry safely later.</div> : null}
-      <div className="mobile-capture">
-        <section className="surface capture-panel" aria-labelledby="capture-title">
-          <p className="eyebrow">The shortest route</p>
-          <h2 id="capture-title">What did you spend?</h2>
-          <p>Name it, price it, and let the ledger do the sorting.</p>
-          <form className="capture-form" onSubmit={submit}>
-            <div className="field">
-              <label htmlFor="capture-merchant">Name</label>
-              <input id="capture-merchant" className="input" value={merchant} onChange={(event) => setMerchant(event.target.value)} placeholder="Coffee, train, market…" autoComplete="off" required />
-            </div>
-            <div className="field">
-              <label htmlFor="capture-amount">Amount</label>
-              <div className="amount-field"><span className="amount-prefix">$</span><input id="capture-amount" className="input" inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" required /></div>
-            </div>
-            <div className="field">
-              <label htmlFor="capture-category">Category</label>
-              <select id="capture-category" className="select" value={categoryId} onChange={(event) => { categoryTouched.current = true; setCategoryId(event.target.value); }} disabled={loading}>
-                <option value="">Choose or leave uncategorized</option>
-                {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-              </select>
-              <p className="prediction-note">
-                <Icon name="spark" className="icon-sm" />
-                {prediction ? <span><strong>{prediction.categoryName}</strong> · {prediction.reason}</span> : "Category suggestions appear as you type."}
-              </p>
-            </div>
-            <button className={`social-toggle${isSocial ? " social-toggle-active" : ""}`} type="button" onClick={() => setIsSocial((current) => !current)} aria-pressed={isSocial}>
-              <span className="toggle-copy"><strong>Social spend</strong><span>Keep this separate from the category.</span></span>
-              <span className="toggle-switch" aria-hidden="true" />
-            </button>
-            {error ? <div className="form-error" role="alert">{error}</div> : null}
-            {message ? <div className="form-success" role="status">{message}</div> : null}
-            <button className="button button-primary" type="submit" disabled={saving || !authorized}>
-              <Icon name="check" className="icon-sm" />
-              {saving ? "Saving…" : "Save expense"}
-            </button>
-          </form>
-        </section>
+  const targetCategories = ["Food", "Entertainment", "Clothing", "Personal Care", "Driving", "Misc"];
 
-        <aside className="capture-side">
-          <section className="surface">
-            <div className="surface-header"><div><h3>Waiting to sync</h3><p>Retry-safe entries held locally.</p></div><Icon name="refresh" className="icon-lg" /></div>
-            <div className="surface-body">
-              {pending.length ? <div className="insight-list">{pending.map((item) => <div className="insight-row" key={item.idempotencyKey}><span className="insight-label"><strong>{String(item.payload.merchant)}</strong><span>pending since {shortDate(item.createdAt)}</span></span><span className="status-badge status-review">queued</span></div>)}</div> : <div className="empty-state"><div><strong>Nothing waiting.</strong><p>Offline entries will appear here until the server confirms them.</p></div></div>}
+  // Prepare ordered categories list matching the target categories
+  const displayCategories = targetCategories.map((name) => {
+    const found = categories.find((c) => c.name.toLowerCase() === name.toLowerCase());
+    return found ?? { id: name, name, color: "#2a6f68" };
+  });
+
+  return (
+    <main className="mobile-modal-layout">
+      <header className="mobile-simple-header">
+        <Link href="/dashboard" className="brand" aria-label="Finance Tracker">
+          <span className="brand-mark" aria-hidden="true" />
+          <span className="brand-name">Finance Tracker</span>
+        </Link>
+        <div className="mobile-header-actions">
+          <Link href="/dashboard" className="button button-secondary button-sm">
+            <Icon name="chart" className="icon-sm" />
+            Dashboard
+          </Link>
+          <Link href="/transactions" className="button button-secondary button-sm">
+            <Icon name="book" className="icon-sm" />
+            Ledger
+          </Link>
+        </div>
+      </header>
+
+      <div className="mobile-modal-card surface">
+        {!authorized ? (
+          <div className="form-notice" role="status" style={{ marginBottom: 16 }}>
+            <strong>Authorization required.</strong> Generate an enrollment code in Settings. <Link href="/login">Admin sign in</Link>
+          </div>
+        ) : null}
+
+        {!online ? (
+          <div className="form-notice" role="status" style={{ marginBottom: 16 }}>
+            Offline mode — will sync when connected.
+          </div>
+        ) : pendingCount > 0 ? (
+          <div className="form-notice" role="status" style={{ marginBottom: 16 }}>
+            {pendingCount} offline {pendingCount === 1 ? "entry" : "entries"} pending sync.
+          </div>
+        ) : null}
+
+        <form className="capture-form" onSubmit={submit}>
+          <div className="field">
+            <label htmlFor="capture-merchant">Merchant / Description</label>
+            <input
+              id="capture-merchant"
+              ref={merchantInputRef}
+              className="input"
+              value={merchant}
+              onChange={(event) => setMerchant(event.target.value)}
+              placeholder="What or where did you pay?"
+              autoComplete="off"
+              autoFocus
+              required
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="capture-amount">Amount</label>
+            <div className="amount-field">
+              <span className="amount-prefix">$</span>
+              <input
+                id="capture-amount"
+                className="input amount-input-lg"
+                inputMode="decimal"
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+                placeholder="0.00"
+                required
+              />
             </div>
-          </section>
-          <section className="surface">
-            <div className="surface-header"><div><h3>Recent stations</h3><p>Only the latest rows are shown here.</p></div><Icon name="book" className="icon-lg" /></div>
-            <div className="surface-body">
-              {recent.length ? <div className="insight-list">{recent.slice(0, 6).map((transaction) => <div className="insight-row" key={transaction.id}><span className="insight-label"><strong>{transaction.merchant}</strong><span>{shortDate(transaction.date)} · {transaction.category?.name ?? "Uncategorized"}{transaction.isSocial ? " · social" : ""}</span></span><span className="insight-value">{formatMoney(transaction.amountCents, transaction.direction)}</span></div>)}</div> : <div className="empty-state"><div><strong>Your recent line is quiet.</strong><p>Save an expense and it will appear here.</p></div></div>}
+          </div>
+
+          <div className="field">
+            <label>Category</label>
+            <div className="category-btn-grid" role="radiogroup" aria-label="Category selection">
+              {displayCategories.map((category) => {
+                const isSelected = categoryId === category.id;
+                return (
+                  <button
+                    key={category.id}
+                    type="button"
+                    className={`category-select-btn${isSelected ? " category-select-btn-active" : ""}`}
+                    onClick={() => {
+                      categoryTouched.current = true;
+                      setCategoryId(isSelected ? "" : category.id);
+                    }}
+                    role="radio"
+                    aria-checked={isSelected}
+                  >
+                    <span>{category.name}</span>
+                  </button>
+                );
+              })}
             </div>
-          </section>
-        </aside>
+          </div>
+
+          <div className="tag-toggle-group">
+            <button
+              className={`tag-toggle-pill${isSocial ? " tag-toggle-active-social" : ""}`}
+              type="button"
+              onClick={() => setIsSocial((prev) => !prev)}
+              aria-pressed={isSocial}
+            >
+              <Icon name="users" className="icon-sm" />
+              <span>Social</span>
+            </button>
+
+            <button
+              className={`tag-toggle-pill${isDating ? " tag-toggle-active-dating" : ""}`}
+              type="button"
+              onClick={() => setIsDating((prev) => !prev)}
+              aria-pressed={isDating}
+            >
+              <Icon name="spark" className="icon-sm" />
+              <span>Dating</span>
+            </button>
+          </div>
+
+          {error ? <div className="form-error" role="alert">{error}</div> : null}
+          {message ? <div className="form-success" role="status">{message}</div> : null}
+
+          <button className="button button-primary capture-submit-btn" type="submit" disabled={saving || !authorized}>
+            <Icon name="check" className="icon-sm" />
+            {saving ? "Saving…" : "Save Expense"}
+          </button>
+        </form>
       </div>
-    </AppShell>
+    </main>
   );
 }

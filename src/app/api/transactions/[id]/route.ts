@@ -23,10 +23,11 @@ export async function PATCH(request: Request, context: RouteContext) {
     const data = {
       ...(input.merchant ? { merchant: input.merchant, normalizedMerchant: normalizeMerchant(input.merchant) } : {}),
       ...(input.amountCents !== undefined ? { amountCents: input.amountCents } : {}),
-      ...(input.direction !== undefined ? { direction: input.direction, ...(input.direction === "income" ? { isSocial: false } : {}) } : {}),
+      ...(input.direction !== undefined ? { direction: input.direction, ...(input.direction === "income" ? { isSocial: false, isDating: false } : {}) } : {}),
       ...(input.date !== undefined ? { date: input.date } : {}),
       ...(input.categoryId !== undefined ? { categoryId: input.categoryId } : {}),
       ...(input.isSocial !== undefined ? { isSocial: input.direction === "income" ? false : input.isSocial } : {}),
+      ...(input.isDating !== undefined ? { isDating: input.direction === "income" ? false : input.isDating } : {}),
       ...(input.notes !== undefined ? { notes: input.notes } : {}),
       ...(input.source !== undefined ? { source: input.source } : {}),
       ...(input.predictionSource !== undefined ? { predictionSource: input.predictionSource } : {}),

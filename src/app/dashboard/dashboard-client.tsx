@@ -14,6 +14,7 @@ type Transaction = {
   date: string;
   category: { id: string; name: string; color: string } | null;
   isSocial: boolean;
+  isDating: boolean;
 };
 
 type Analytics = {
@@ -183,6 +184,7 @@ export default function DashboardClient() {
                             <span className="ledger-subline">
                               <span className="category-pill">{transaction.category?.name ?? "Uncategorized"}</span>
                               {transaction.isSocial ? <span className="social-pill"><Icon name="users" className="icon-sm" /> Social</span> : null}
+                              {transaction.isDating ? <span className="dating-pill"><Icon name="spark" className="icon-sm" /> Dating</span> : null}
                             </span>
                           </span>
                         </div>

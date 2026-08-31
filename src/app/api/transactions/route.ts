@@ -18,6 +18,7 @@ export async function GET(request: Request) {
     const direction = url.searchParams.get("direction");
     const categoryId = url.searchParams.get("categoryId");
     const social = url.searchParams.get("social");
+    const dating = url.searchParams.get("dating");
     const from = url.searchParams.get("from");
     const to = url.searchParams.get("to");
 
@@ -28,11 +29,37 @@ export async function GET(request: Request) {
             ...(to ? { lte: new Date(to) } : {}),
           }
         : undefined;
+
+    const isSocialSearch = search && (search.toLowerCase() === "social" || search.toLowerCase() === "#social");
+    const isDatingSearch = search && (search.toLowerCase() === "dating" || search.toLowerCase() === "#dating");
+
     const where = {
-      ...(search ? { merchant: { contains: search } } : {}),
+      ...(search
+        ? isSocialSearch
+          ? {
+              OR: [
+                { isSocial: true },
+                { merchant: { contains: search, mode: "insensitive" as const } },
+              ],
+            }
+          : isDatingSearch
+            ? {
+                OR: [
+                  { isDating: true },
+                  { merchant: { contains: search, mode: "insensitive" as const } },
+                ],
+              }
+            : {
+                OR: [
+                  { merchant: { contains: search, mode: "insensitive" as const } },
+                  { notes: { contains: search, mode: "insensitive" as const } },
+                ],
+              }
+        : {}),
       ...(direction === "expense" || direction === "income" ? { direction } : {}),
       ...(categoryId ? { categoryId } : {}),
-      ...(social === "true" ? { isSocial: true } : {}),
+      ...(social === "true" ? { isSocial: true } : social === "false" ? { isSocial: false } : {}),
+      ...(dating === "true" ? { isDating: true } : dating === "false" ? { isDating: false } : {}),
       ...(date ? { date } : {}),
     };
 
@@ -113,6 +140,7 @@ export async function POST(request: Request) {
         date: input.date ?? new Date(),
         categoryId: input.categoryId ?? null,
         isSocial: input.direction === "income" ? false : input.isSocial,
+        isDating: input.direction === "income" ? false : input.isDating,
         notes: input.notes ?? null,
         source: access.kind === "device" ? "mobile" : input.source,
         predictionSource: input.predictionSource ?? null,
