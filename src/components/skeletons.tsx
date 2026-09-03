@@ -197,6 +197,9 @@ export function TransactionsTableSkeleton() {
       <table className="data-table">
         <thead>
           <tr>
+            <th className="th-checkbox">
+              <span className="skeleton" style={{ display: "inline-block", width: 16, height: 16, borderRadius: 4 }} />
+            </th>
             <th>Merchant</th>
             <th>Date</th>
             <th>Category</th>
@@ -207,6 +210,9 @@ export function TransactionsTableSkeleton() {
         <tbody>
           {Array.from({ length: 8 }).map((_, idx) => (
             <tr key={idx}>
+              <td className="td-checkbox">
+                <span className="skeleton" style={{ display: "inline-block", width: 16, height: 16, borderRadius: 4 }} />
+              </td>
               <td>
                 <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                   <span className="skeleton skeleton-text" style={{ width: `${110 + (idx % 4) * 25}px`, height: 15 }} />

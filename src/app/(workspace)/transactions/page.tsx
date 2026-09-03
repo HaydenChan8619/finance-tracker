@@ -212,6 +212,8 @@ function TransactionsWorkspace() {
   const [pageCount, setPageCount] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkWorking, setBulkWorking] = useState(false);
 
   const loadCategories = useCallback(async () => {
     try {
@@ -263,10 +265,85 @@ function TransactionsWorkspace() {
     void loadTransactions();
   }, [loadTransactions]);
 
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [categoryId, datingOnly, direction, page, query, socialOnly]);
+
+  const visibleIds = transactions.map((t) => t.id);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+  const someVisibleSelected = visibleIds.some((id) => selectedIds.has(id));
+
+  function toggleSelectAll() {
+    if (allVisibleSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(visibleIds));
+    }
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  async function handleBulkUpdate(updates: { isSocial?: boolean; isDating?: boolean; categoryId?: string | null }) {
+    if (selectedIds.size === 0) return;
+    setBulkWorking(true);
+    setError("");
+    try {
+      await apiFetch("/api/transactions/batch", {
+        method: "PATCH",
+        body: JSON.stringify({
+          ids: Array.from(selectedIds),
+          updates,
+        }),
+      });
+      setSelectedIds(new Set());
+      await loadTransactions();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to perform bulk update.");
+    } finally {
+      setBulkWorking(false);
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Delete ${selectedIds.size} selected transaction${selectedIds.size > 1 ? "s" : ""}?`)) return;
+    setBulkWorking(true);
+    setError("");
+    try {
+      await apiFetch("/api/transactions/batch", {
+        method: "DELETE",
+        body: JSON.stringify({
+          ids: Array.from(selectedIds),
+        }),
+      });
+      setSelectedIds(new Set());
+      await loadTransactions();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to delete selected transactions.");
+    } finally {
+      setBulkWorking(false);
+    }
+  }
+
   async function remove(transaction: Transaction) {
     if (!window.confirm(`Delete the ${transaction.merchant} transaction?`)) return;
     try {
       await apiFetch(`/api/transactions/${transaction.id}`, { method: "DELETE" });
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        next.delete(transaction.id);
+        return next;
+      });
       await loadTransactions();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to delete transaction.");
@@ -327,26 +404,152 @@ function TransactionsWorkspace() {
               </div>
             </div>
           </div>
+          {selectedIds.size > 0 ? (
+            <div className="bulk-action-bar" role="region" aria-label="Bulk actions">
+              <div className="bulk-action-left">
+                <span className="bulk-count-badge">
+                  <Icon name="check" className="icon-sm" />
+                  {selectedIds.size} selected
+                </span>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => setSelectedIds(new Set())}
+                  disabled={bulkWorking}
+                  title="Clear selection"
+                >
+                  Clear
+                </button>
+              </div>
+              <div className="bulk-action-group">
+                <div className="bulk-action-subgroup">
+                  <button
+                    type="button"
+                    className="bulk-btn bulk-btn-social"
+                    onClick={() => void handleBulkUpdate({ isSocial: true })}
+                    disabled={bulkWorking}
+                    title="Mark selected as Social"
+                  >
+                    <Icon name="users" className="icon-sm" />
+                    + Social
+                  </button>
+                  <button
+                    type="button"
+                    className="bulk-btn bulk-btn-social-remove"
+                    onClick={() => void handleBulkUpdate({ isSocial: false })}
+                    disabled={bulkWorking}
+                    title="Remove Social flag from selected"
+                  >
+                    - Social
+                  </button>
+                </div>
+
+                <div className="bulk-action-subgroup">
+                  <button
+                    type="button"
+                    className="bulk-btn bulk-btn-dating"
+                    onClick={() => void handleBulkUpdate({ isDating: true })}
+                    disabled={bulkWorking}
+                    title="Mark selected as Dating"
+                  >
+                    <Icon name="heart" className="icon-sm" />
+                    + Dating
+                  </button>
+                  <button
+                    type="button"
+                    className="bulk-btn bulk-btn-dating-remove"
+                    onClick={() => void handleBulkUpdate({ isDating: false })}
+                    disabled={bulkWorking}
+                    title="Remove Dating flag from selected"
+                  >
+                    - Dating
+                  </button>
+                </div>
+
+                <select
+                  className="bulk-select"
+                  defaultValue=""
+                  disabled={bulkWorking}
+                  onChange={(event) => {
+                    const val = event.target.value;
+                    if (val) {
+                      void handleBulkUpdate({ categoryId: val });
+                      event.target.value = "";
+                    }
+                  }}
+                  aria-label="Change category for selected transactions"
+                >
+                  <option value="" disabled>Change category…</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  className="bulk-btn bulk-btn-delete"
+                  onClick={() => void handleBulkDelete()}
+                  disabled={bulkWorking}
+                  title="Delete selected transactions"
+                >
+                  <Icon name="trash" className="icon-sm" />
+                  Delete
+                </button>
+              </div>
+            </div>
+          ) : null}
           {loading ? (
             <TransactionsTableSkeleton />
           ) : transactions.length ? (
             <div className="table-wrap">
               <table className="data-table">
-                <thead><tr><th>Merchant</th><th>Date</th><th>Category</th><th>Amount</th><th><span className="sr-only">Actions</span></th></tr></thead>
+                <thead>
+                  <tr>
+                    <th className="th-checkbox">
+                      <input
+                        type="checkbox"
+                        ref={(el) => {
+                          if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected;
+                        }}
+                        className="table-checkbox"
+                        checked={allVisibleSelected}
+                        onChange={toggleSelectAll}
+                        aria-label="Select all transactions on this page"
+                      />
+                    </th>
+                    <th>Merchant</th>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Amount</th>
+                    <th><span className="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
                 <tbody>
-                  {transactions.map((transaction) => (
-                    <tr key={transaction.id}>
-                      <td>
-                        <strong>{transaction.merchant}</strong>
-                        {transaction.isSocial ? <span className="social-pill" style={{ marginLeft: 7 }}><Icon name="users" className="icon-sm" /> Social</span> : null}
-                        {transaction.isDating ? <span className="dating-pill" style={{ marginLeft: 7 }}><Icon name="heart" className="icon-sm" /> Dating</span> : null}
-                      </td>
-                      <td className="mono">{fullDate(transaction.date)}</td>
-                      <td><span className="category-pill">{transaction.category?.name ?? "Uncategorized"}</span></td>
-                      <td className={`mono${transaction.direction === "income" ? " metric-detail positive" : " metric-detail negative"}`}>{formatMoney(transaction.amountCents, transaction.direction)}</td>
-                      <td><div className="table-actions"><button className="text-button" type="button" onClick={() => setEditing(transaction)}>Edit</button><button className="text-button" type="button" onClick={() => void remove(transaction)}>Delete</button></div></td>
-                    </tr>
-                  ))}
+                  {transactions.map((transaction) => {
+                    const isSelected = selectedIds.has(transaction.id);
+                    return (
+                      <tr key={transaction.id} className={isSelected ? "row-selected" : undefined}>
+                        <td className="td-checkbox">
+                          <input
+                            type="checkbox"
+                            className="table-checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelect(transaction.id)}
+                            aria-label={`Select ${transaction.merchant}`}
+                          />
+                        </td>
+                        <td>
+                          <strong>{transaction.merchant}</strong>
+                          {transaction.isSocial ? <span className="social-pill" style={{ marginLeft: 7 }}><Icon name="users" className="icon-sm" /> Social</span> : null}
+                          {transaction.isDating ? <span className="dating-pill" style={{ marginLeft: 7 }}><Icon name="heart" className="icon-sm" /> Dating</span> : null}
+                        </td>
+                        <td className="mono">{fullDate(transaction.date)}</td>
+                        <td><span className="category-pill">{transaction.category?.name ?? "Uncategorized"}</span></td>
+                        <td className={`mono${transaction.direction === "income" ? " metric-detail positive" : " metric-detail negative"}`}>{formatMoney(transaction.amountCents, transaction.direction)}</td>
+                        <td><div className="table-actions"><button className="text-button" type="button" onClick={() => setEditing(transaction)}>Edit</button><button className="text-button" type="button" onClick={() => void remove(transaction)}>Delete</button></div></td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
