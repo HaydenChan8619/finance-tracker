@@ -7,6 +7,13 @@ export const metadata: Metadata = {
   description: "A private, self-hosted ledger for everyday money.",
   applicationName: "Finance Tracker",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: "/icon.svg",
+  },
 };
 
 export const viewport: Viewport = {
